@@ -18,6 +18,15 @@ case class OpenRv300() extends Component {
     )))
   }
 
-  
+  /* set correct top axi signal names */
+  io.bus.setName("")
+  io.bus.aw.payload.setName("aw")
+  io.bus.ar.payload.setName("ar")
+  io.bus.w.payload.setName("w")
+  io.bus.r.payload.setName("r")
+  io.bus.b.payload.setName("b")
+
+  /* dummy device */
+  io.bus.setIdle()
 
 }
