@@ -16,11 +16,14 @@ case class GPRs() extends Component {
   /* TODO: 手动设置为0，可以先在仿真的时候加上 */
   val registers = Mem(Bits(32 bits), wordCount = 32)
 
+  io.readData0 := B"32'd0"
+  io.readData1 := B"32'd0"
+
   when(io.readEnable0) {
-    io.readData0 := registers(io.readAddr0).asUInt
+    io.readData0 := registers(io.readAddr0)
   }
 
   when(io.readEnable1) {
-    io.readData1 := registers(io.readAddr1).asUInt
+    io.readData1 := registers(io.readAddr1)
   }
 }

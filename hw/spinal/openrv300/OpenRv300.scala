@@ -1,10 +1,9 @@
 package openrv300
 
 import spinal.core._
-import spinal.lib.{master, Flow}
+import spinal.lib.{Flow, master}
 import spinal.lib.bus.amba4.axi._
-
-import pipeline.InstFetch
+import pipeline.{InstDecode, InstFetch}
 import pipeline.payload.FetchPayload
 
 case class OpenRv300() extends Component {
@@ -33,4 +32,7 @@ case class OpenRv300() extends Component {
   io.bus.setIdle()
 
   val fetch = InstFetch()
+  val decode = InstDecode()
+
+  fetch.io.answer <> decode.io.request
 }
