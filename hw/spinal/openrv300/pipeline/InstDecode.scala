@@ -117,10 +117,8 @@ case class InstDecode() extends Component {
           Cat(reqData.instruction(31 downto 25),
             reqData.instruction(11 downto 7)).asSInt.resize(32)
 
-        ansPayload.regDest := reqData.instruction(24 downto 20).asUInt
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
-
-        regNotUsed(1)
+        ansPayload.regSource1 := genRegSourceBundle(reqData.instruction, 24, 20, 1)
       }
       is(RV32I.ADDI, RV32I.SLTI, RV32I.SLTIU, RV32I.XORI, RV32I.ORI, RV32I.ANDI) {
         ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
