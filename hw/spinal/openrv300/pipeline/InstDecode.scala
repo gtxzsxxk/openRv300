@@ -76,14 +76,16 @@ case class InstDecode() extends Component {
       is(RV32I.JAL) {
         ansPayload.microOp := MicroOp.JAL
         ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-        ansPayload.imm := Cat(reqData.instruction(31), reqData.instruction(19 downto 12), reqData.instruction(20), reqData.instruction(30 downto 21))
+        ansPayload.sextImm :=
+          Cat(reqData.instruction(31), reqData.instruction(19 downto 12),
+            reqData.instruction(20), reqData.instruction(30 downto 21), B"0").asSInt.resize(32)
 
         regBothNotUsed()
       }
       is(RV32I.JALR) {
         ansPayload.microOp := MicroOp.JALR
         ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-        ansPayload.imm := reqData.instruction(31 downto 20).resized
+        ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
 
         regNotUsed(1)
@@ -91,14 +93,17 @@ case class InstDecode() extends Component {
       is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
         ansPayload.microOp := MicroOp.BRANCH
         ansPayload.function0 := reqData.instruction(14 downto 12)
-        ansPayload.imm := Cat(reqData.instruction(31), reqData.instruction(7), reqData.instruction(30 downto 25), reqData.instruction(11 downto 8)).resized
+        ansPayload.sextImm :=
+          Cat(reqData.instruction(31), reqData.instruction(7),
+            reqData.instruction(30 downto 25),
+            reqData.instruction(11 downto 8), B"0").asSInt.resize(32)
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
         ansPayload.regSource1 := genRegSourceBundle(reqData.instruction, 24, 20, 1)
       }
       is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
         ansPayload.microOp := MicroOp.LOAD
         ansPayload.function0 := reqData.instruction(14 downto 12)
-        ansPayload.imm := reqData.instruction(31 downto 20).resized
+        ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
 
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
         ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
@@ -108,7 +113,9 @@ case class InstDecode() extends Component {
       is(RV32I.SB, RV32I.SH, RV32I.SW) {
         ansPayload.microOp := MicroOp.STORE
         ansPayload.function0 := reqData.instruction(14 downto 12)
-        ansPayload.imm := Cat(reqData.instruction(31 downto 25), reqData.instruction(11 downto 7)).resized
+        ansPayload.sextImm :=
+          Cat(reqData.instruction(31 downto 25),
+            reqData.instruction(11 downto 7)).asSInt.resize(32)
 
         ansPayload.regDest := reqData.instruction(24 downto 20).asUInt
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
@@ -121,7 +128,7 @@ case class InstDecode() extends Component {
 
         ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
-        ansPayload.imm := reqData.instruction(31 downto 20).resized
+        ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
 
         regNotUsed(1)
       }

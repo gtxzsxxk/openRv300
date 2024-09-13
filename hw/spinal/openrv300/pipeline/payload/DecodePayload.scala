@@ -17,4 +17,5 @@ case class DecodePayload() extends Bundle {
   val regDest = UInt(5 bits)
 
   val imm = Bits(20 bits)
+  val sextImm = SInt(32 bits)
 }
