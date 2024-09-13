@@ -3,16 +3,16 @@ package openrv300.pipeline
 import openrv300.isa.MicroOp
 import spinal.core._
 import spinal.lib._
-import payload.{DecodePayload, ExecPayload}
+import payload.{DecodePayload, ExecMemPayload}
 
 case class InstExec() extends Component {
   val io = new Bundle {
     val request = slave(Flow(DecodePayload()))
-    val answer = master(Flow(ExecPayload()))
+    val answer = master(Flow(ExecMemPayload()))
   }
 
   val reqData = io.request.payload
-  val ansPayload = Reg(ExecPayload())
+  val ansPayload = Reg(ExecMemPayload())
 
   ansPayload.microOp := reqData.microOp
   ansPayload.instPc := reqData.instPc

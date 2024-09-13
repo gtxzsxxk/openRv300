@@ -2,7 +2,7 @@ package openrv300.pipeline.payload
 
 import spinal.core._
 
-case class ExecPayload() extends Bundle {
+case class ExecMemPayload() extends Bundle {
   val microOp = Bits(7 bits)
 
   val instPc = UInt(32 bits)
