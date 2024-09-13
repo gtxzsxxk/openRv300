@@ -20,10 +20,18 @@ case class GPRs() extends Component {
   io.readData1 := B"32'd0"
 
   when(io.readEnable0) {
-    io.readData0 := registers(io.readAddr0)
+    when(io.readAddr0 === U"5'd0") {
+      io.readData0 := B"32'd0"
+    } otherwise {
+      io.readData0 := registers(io.readAddr0)
+    }
   }
 
   when(io.readEnable1) {
-    io.readData1 := registers(io.readAddr1)
+    when(io.readAddr1 === U"5'd0") {
+      io.readData1 := B"32'd0"
+    } otherwise {
+      io.readData1 := registers(io.readAddr1)
+    }
   }
 }
