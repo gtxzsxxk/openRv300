@@ -61,9 +61,20 @@ case class InstDecode() extends Component {
   val reqData = io.request.payload
   val ansPayload = Reg(DecodePayload())
 
+  ansPayload.microOp := B"7'd0"
   ansPayload.instPc := reqData.pcAddr
   ansPayload.instruction := reqData.instruction
+  ansPayload.function0 := B"3'd0"
+  ansPayload.function1 := B"7'd0"
+  ansPayload.regSource0.which := U"5'd0"
+  ansPayload.regSource0.value := B"32'd0"
+  ansPayload.regSource1.which := U"5'd0"
+  ansPayload.regSource1.value := B"32'd0"
   ansPayload.regDest := U"5'd0"
+  ansPayload.imm := B"20'd0"
+  ansPayload.sextImm := S"32'd0"
+
+  io.answer.setIdle()
 
   when(io.request.valid) {
     io.answer.push(ansPayload)

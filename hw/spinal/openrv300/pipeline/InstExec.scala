@@ -31,6 +31,8 @@ case class InstExec() extends Component {
   ansPayload.takeJump := False
   ansPayload.jumpPc := U"32'd0"
 
+  io.answer.setIdle()
+
   when(io.request.valid) {
     io.answer.push(ansPayload)
 
