@@ -47,6 +47,17 @@ case class InstDecode() extends Component {
     regNotUsed(1)
   }
 
+  def NOP(): Unit = {
+    ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
+    ansPayload.function0 := B"000"
+
+    ansPayload.regDest := U"5'd0"
+    ansPayload.regSource0 := genRegSourceBundle(B"32'd0", 19, 15, 0)
+    ansPayload.imm := B"12'd0".resized
+
+    regNotUsed(1)
+  }
+
   val reqData = io.request.payload
   val ansPayload = Reg(DecodePayload())
 
@@ -147,8 +158,13 @@ case class InstDecode() extends Component {
         ansPayload.function0 := reqData.instruction(14 downto 12)
         ansPayload.function1 := reqData.instruction(30).asBits.resized
       }
-      is(RV32I.FENCE){
-
+      is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
+        /* decode as nop */
+        NOP()
+      }
+      is(RV32I.ECALL) {
+        /* decode as nop */
+        NOP()
       }
     }
   }
