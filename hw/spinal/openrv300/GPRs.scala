@@ -1,37 +1,31 @@
 package openrv300
 
 import spinal.core._
+import spinal.lib._
 
 case class GPRs() extends Component {
-  val io = new Bundle{
-    val readAddr0 = in port UInt(5 bits)
-    val readData0 = out port Bits(32 bits)
-    val readEnable0 = in port Bool()
+  val io = new Bundle {
+    val decodePorts = Vec.fill(2)(slave(GPRsReadPort()))
 
-    val readAddr1 = in port UInt(5 bits)
-    val readData1 = out port Bits(32 bits)
-    val readEnable1 = in port Bool()
+    val writeBackPort = slave(GPRsWritePort())
   }
 
   /* TODO: 手动设置为0，可以先在仿真的时候加上 */
   val registers = Mem(Bits(32 bits), wordCount = 32)
 
-  io.readData0 := B"32'd0"
-  io.readData1 := B"32'd0"
+  for (idx <- 0 until 2) {
+    io.decodePorts(idx).readData := B"32'd0"
 
-  when(io.readEnable0) {
-    when(io.readAddr0 === U"5'd0") {
-      io.readData0 := B"32'd0"
-    } otherwise {
-      io.readData0 := registers(io.readAddr0)
+    when(io.decodePorts(idx).readEnable) {
+      when(io.decodePorts(idx).readAddr === U"5'd0") {
+        io.decodePorts(idx).readData := B"32'd0"
+      } elsewhen (io.writeBackPort.writeEnable && io.writeBackPort.writeAddr === io.decodePorts(idx).readAddr) {
+        io.decodePorts(idx).readData := io.writeBackPort.writeData
+      } otherwise {
+        io.decodePorts(idx).readData := registers(io.decodePorts(idx).readAddr)
+      }
     }
   }
 
-  when(io.readEnable1) {
-    when(io.readAddr1 === U"5'd0") {
-      io.readData1 := B"32'd0"
-    } otherwise {
-      io.readData1 := registers(io.readAddr1)
-    }
-  }
+  registers.write(io.writeBackPort.writeAddr, io.writeBackPort.writeData, enable = io.writeBackPort.writeEnable)
 }
