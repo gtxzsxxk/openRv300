@@ -63,8 +63,11 @@ case class InstDecode() extends Component {
 
   ansPayload.instPc := reqData.pcAddr
   ansPayload.instruction := reqData.instruction
+  ansPayload.regDest := U"5'd0"
 
   when(io.request.valid) {
+    io.answer.push(ansPayload)
+
     switch(reqData.instruction) {
       is(RV32I.LUI, RV32I.AUIPC) {
         ansPayload.microOp := Mux(reqData.instruction === RV32I.LUI, MicroOp.LUI, MicroOp.AUIPC)
@@ -168,7 +171,11 @@ case class InstDecode() extends Component {
         NOP()
       }
       is(RV32I.ECALL) {
-        /* decode as nop */
+        /* TODO: raise an exception */
+        NOP()
+      }
+      default {
+        /* TODO: raise an exception */
         NOP()
       }
     }
