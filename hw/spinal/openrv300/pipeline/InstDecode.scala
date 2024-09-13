@@ -1,6 +1,6 @@
 package openrv300.pipeline
 
-import openrv300.GPRs
+import openrv300.{GPRs, GPRsReadPort}
 import spinal.core._
 import spinal.lib._
 import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
@@ -10,36 +10,27 @@ case class InstDecode() extends Component {
   val io = new Bundle {
     val request = slave(Flow(FetchPayload()))
     val answer = master(Flow(DecodePayload()))
+    val regReadPorts = Vec.fill(2)(master(GPRsReadPort()))
   }
 
-  val gprs = GPRs()
-
-  gprs.io.readAddr0 := U"5'd0"
-  gprs.io.readEnable0 := False
-  gprs.io.readAddr1 := U"5'd0"
-  gprs.io.readEnable1 := False
+  for(idx <- 0 until 2) {
+    io.regReadPorts(idx).readEnable := False
+    io.regReadPorts(idx).readAddr := U"5'd0"
+  }
 
   def genRegSourceBundle(instruction: Bits, msb: Int, lsb: Int, port: Int): RegisterSourceBundle = {
     val bundle = RegisterSourceBundle()
     bundle.which := instruction(msb downto lsb).asUInt
-    if (port == 0) {
-      bundle.value := gprs.io.readData0
-      gprs.io.readEnable0 := True
-      gprs.io.readAddr0 := bundle.which
-    } else if (port == 1) {
-      bundle.value := gprs.io.readData1
-      gprs.io.readEnable1 := True
-      gprs.io.readAddr1 := bundle.which
-    }
+
+    bundle.value := io.regReadPorts(port).readData
+    io.regReadPorts(port).readEnable := True
+    io.regReadPorts(port).readAddr := bundle.which
+
     bundle
   }
 
   def regNotUsed(port: Int): Unit = {
-    if (port == 0) {
-      gprs.io.readEnable0 := False
-    } else if (port == 1) {
-      gprs.io.readEnable1 := False
-    }
+    io.regReadPorts(port).readEnable := False
   }
 
   def regBothNotUsed(): Unit = {
