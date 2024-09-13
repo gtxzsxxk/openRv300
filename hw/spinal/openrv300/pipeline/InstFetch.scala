@@ -14,7 +14,7 @@ case class InstFetch() extends Component {
 
   val payload = Reg(FetchPayload())
   payload.pcAddr := programCounter
-  payload.instruction := instMem(programCounter(9 downto 2)).asUInt
+  payload.instruction := instMem(programCounter(9 downto 2))
   io.answer.push(payload)
 
   programCounter := programCounter + 4

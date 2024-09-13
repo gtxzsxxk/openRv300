@@ -5,11 +5,11 @@ import spinal.core._
 case class GPRs() extends Component {
   val io = new Bundle{
     val readAddr0 = in port UInt(5 bits)
-    val readData0 = out port UInt(32 bits)
+    val readData0 = out port Bits(32 bits)
     val readEnable0 = in port Bool()
 
     val readAddr1 = in port UInt(5 bits)
-    val readData1 = out port UInt(32 bits)
+    val readData1 = out port Bits(32 bits)
     val readEnable1 = in port Bool()
   }
 
