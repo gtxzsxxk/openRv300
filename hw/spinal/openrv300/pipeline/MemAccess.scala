@@ -1,6 +1,7 @@
 package openrv300.pipeline
 
 import openrv300.isa.MicroOp
+import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload._
 import spinal.core._
 import spinal.lib._
@@ -9,6 +10,7 @@ case class MemAccess() extends Component {
   val io = new Bundle {
     val request = slave(Flow(ExecMemPayload()))
     val answer = master(Flow(ExecMemPayload()))
+    val bypassWritePort = master(BypassWritePort())
   }
 
   val dataMem = Mem(Bits(32 bits), wordCount = 256)
@@ -26,6 +28,19 @@ case class MemAccess() extends Component {
   dataToWrite := B"32'd0"
   val writeMask = Bits(4 bits)
   writeMask := B"4'd0"
+
+  val bypassWPort = Reg(BypassWritePort())
+  io.bypassWritePort := bypassWPort
+
+  bypassWPort.whichReg := U"5'd0"
+  bypassWPort.finished := False
+  bypassWPort.regValue := B"32'd0"
+
+  def insertBypass(): Unit = {
+    bypassWPort.whichReg := ansPayload.writeRegDest
+    bypassWPort.regValue := ansPayload.regDestValue
+    bypassWPort.finished := True
+  }
 
   io.answer.setIdle()
 
@@ -58,6 +73,7 @@ case class MemAccess() extends Component {
             ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
           }
         }
+        insertBypass()
       }
       is(MicroOp.STORE) {
         switch(reqData.function0) {

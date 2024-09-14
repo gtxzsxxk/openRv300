@@ -4,11 +4,13 @@ import openrv300.isa.MicroOp
 import spinal.core._
 import spinal.lib._
 import payload.{DecodePayload, ExecMemPayload}
+import control._
 
 case class InstExec() extends Component {
   val io = new Bundle {
     val request = slave(Flow(DecodePayload()))
     val answer = master(Flow(ExecMemPayload()))
+    val bypassWritePort = master(BypassWritePort())
   }
 
   val reqData = io.request.payload
@@ -31,6 +33,19 @@ case class InstExec() extends Component {
   ansPayload.takeJump := False
   ansPayload.jumpPc := U"32'd0"
 
+  val bypassWPort = Reg(BypassWritePort())
+  io.bypassWritePort := bypassWPort
+
+  bypassWPort.whichReg := U"5'd0"
+  bypassWPort.finished := False
+  bypassWPort.regValue := B"32'd0"
+
+  def insertBypass(): Unit = {
+    bypassWPort.whichReg := ansPayload.writeRegDest
+    bypassWPort.regValue := ansPayload.regDestValue
+    bypassWPort.finished := True
+  }
+
   io.answer.setIdle()
 
   when(io.request.valid) {
@@ -40,10 +55,12 @@ case class InstExec() extends Component {
       is(MicroOp.LUI) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := Cat(reqData.imm, B"12'd0")
+        insertBypass()
       }
       is(MicroOp.AUIPC) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.instPc + Cat(reqData.imm, B"12'd0").asUInt).asBits
+        insertBypass()
       }
       is(MicroOp.JAL) {
         ansPayload.takeJump := True
@@ -129,18 +146,22 @@ case class InstExec() extends Component {
             /* TODO: illegal Inst. */
           }
         }
+        insertBypass()
       }
       is(MicroOp.ARITH_SLL_IMM) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asUInt |<< reqData.imm.resize(5).asUInt).asBits
+        insertBypass()
       }
       is(MicroOp.ARITH_SRL_IMM) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asUInt |>> reqData.imm.resize(5).asUInt).asBits
+        insertBypass()
       }
       is(MicroOp.ARITH_SRA_IMM) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asSInt >> reqData.imm.resize(5).asUInt).asBits
+        insertBypass()
       }
       is(MicroOp.ARITH_BINARY) {
         ansPayload.writeRegDest := True
@@ -184,18 +205,22 @@ case class InstExec() extends Component {
             /* TODO: illegal Inst. */
           }
         }
+        insertBypass()
       }
       is(MicroOp.ARITH_SLL) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asUInt |<< reqData.regSource1.value.asUInt.resize(5)).asBits
+        insertBypass()
       }
       is(MicroOp.ARITH_SRL) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asUInt |>> reqData.regSource1.value.asUInt.resize(5)).asBits
+        insertBypass()
       }
       is(MicroOp.ARITH_SRA) {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (reqData.regSource0.value.asSInt >> reqData.regSource1.value.asUInt.resize(5)).asBits
+        insertBypass()
       }
       default {
         /* TODO: illegal Inst. */
