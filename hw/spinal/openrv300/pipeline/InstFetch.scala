@@ -10,7 +10,7 @@ case class InstFetch() extends Component {
   }
 
   val instMem = Mem(Bits(32 bits), wordCount = 256)
-  val programCounter = RegInit(U"h8000_0000")
+  val programCounter = RegInit(U"32'h0000_0000")
 
   val payload = Reg(FetchPayload())
   payload.pcAddr := programCounter
