@@ -1,7 +1,7 @@
 package openrv300.pipeline
 
-import openrv300.GPRsWritePort
 import openrv300.pipeline.payload.ExecMemPayload
+import openrv300.regfile.GPRsWritePort
 import spinal.core._
 import spinal.lib._
 

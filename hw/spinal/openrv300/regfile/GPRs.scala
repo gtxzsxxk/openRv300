@@ -1,4 +1,4 @@
-package openrv300
+package openrv300.regfile
 
 import spinal.core._
 import spinal.lib._

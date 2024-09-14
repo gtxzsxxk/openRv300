@@ -1,5 +1,6 @@
 package openrv300
 
+import openrv300.regfile.GPRs
 import spinal.core._
 import spinal.lib.{Flow, master}
 import spinal.lib.bus.amba4.axi._

@@ -1,7 +1,7 @@
-package openrv300
+package openrv300.regfile
 
 import spinal.core._
-import spinal.lib.{IMasterSlave, master}
+import spinal.lib.IMasterSlave
 
 case class GPRsWritePort() extends Bundle with IMasterSlave {
   val writeAddr = UInt(5 bits)

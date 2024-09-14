@@ -1,10 +1,10 @@
 package openrv300.pipeline
 
-import openrv300.{GPRs, GPRsReadPort}
 import spinal.core._
 import spinal.lib._
 import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
 import openrv300.isa._
+import openrv300.regfile.{GPRs, GPRsReadPort}
 
 case class InstDecode() extends Component {
   val io = new Bundle {
