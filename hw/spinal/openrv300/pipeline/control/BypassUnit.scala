@@ -7,29 +7,44 @@ case class BypassUnit() extends Component {
   val io = new Bundle {
     /* exec, mem, wb */
     val writePort = Vec.fill(3)(slave(BypassWritePort()))
-
-    val execReadPort = slave(BypassReadPort())
+    val execReadPorts = Vec.fill(2)(slave(BypassReadPort()))
+    val execCheckPorts = Vec.fill(2)(slave(BypassCheckPort()))
   }
-
-  io.execReadPort.pending := True
-  io.execReadPort.regValue := B"32'd0"
 
   val ctx = WhenBuilder()
 
   /* 旁路网络 */
-  when(io.execReadPort.readEnable) {
-    /* 答案已计算完成 */
-    /* TODO: 检查这里的优先级 */
-    for (idx <- 0 until 1) {
-      ctx.when(io.writePort(idx).finished && io.writePort(idx).whichReg === io.execReadPort.whichReg) {
-        io.execReadPort.pending := False
-        io.execReadPort.regValue := io.writePort(idx).regValue
+  for (rdIndex <- 0 until 2) {
+    io.execReadPorts(rdIndex).regValue := B"32'd0"
+    io.execCheckPorts(rdIndex).pending := False
+
+    when(io.execReadPorts(rdIndex).readEnable) {
+      /* 答案已计算完成 */
+      /* TODO: 检查这里的优先级 */
+      for (idx <- 0 until 1) {
+        ctx.when(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg) {
+          io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
+        }
+      }
+      for (idx <- 1 until 3) {
+        ctx.elsewhen(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg) {
+          io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
+        }
       }
     }
-    for (idx <- 1 until 3) {
-      ctx.elsewhen(io.writePort(idx).finished && io.writePort(idx).whichReg === io.execReadPort.whichReg) {
-        io.execReadPort.pending := False
-        io.execReadPort.regValue := io.writePort(idx).regValue
+
+    when(io.execCheckPorts(rdIndex).checkEnable) {
+      /* 答案已计算完成 */
+      /* TODO: 检查这里的优先级 */
+      for (idx <- 0 until 1) {
+        ctx.when(io.writePort(idx).whichReg === io.execCheckPorts(rdIndex).whichReg) {
+          io.execCheckPorts(rdIndex).pending := io.writePort(idx).finished
+        }
+      }
+      for (idx <- 1 until 3) {
+        ctx.elsewhen(io.writePort(idx).whichReg === io.execCheckPorts(rdIndex).whichReg) {
+          io.execCheckPorts(rdIndex).pending := io.writePort(idx).finished
+        }
       }
     }
   }
