@@ -18,12 +18,14 @@ case class MemAccess() extends Component {
 
   ansPayload <> reqData
 
-  val addrByWord = UInt(30 bits)
-  addrByWord := reqData.memoryAddress(31 downto 2)
+  val addrByWord = UInt(8 bits)
+  addrByWord := reqData.memoryAddress(9 downto 2)
   val addrOffset = UInt(2 bits)
   addrOffset := reqData.memoryAddress(1 downto 0)
   val dataToWrite = Bits(32 bits)
+  dataToWrite := B"32'd0"
   val writeMask = Bits(4 bits)
+  writeMask := B"4'd0"
 
   io.answer.setIdle()
 
@@ -37,56 +39,58 @@ case class MemAccess() extends Component {
         switch(reqData.function0) {
           is(B"000") {
             /* LB */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asSInt.resize(32)
+            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asSInt.resize(32).asBits
           }
           is(B"001") {
             /* LH */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asSInt.resize(32)
+            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asSInt.resize(32).asBits
           }
           is(B"010") {
             /* LW */
-            ansPayload.regDestValue := dataMem(addrByWord)
+            ansPayload.regDestValue := dataMem(addrByWord).asBits
           }
           is(B"100") {
             /* LBU */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asUInt.resize(32)
+            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asUInt.resize(32).asBits
           }
           is(B"101") {
             /* LHU */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32)
+            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
           }
         }
       }
       is(MicroOp.STORE) {
-        is(B"000") {
-          /* SB */
-          dataToWrite := reqData.regSource1.value |<< addrOffset.muxList[UInt](
-            for (idx <- 0 until 4)
-              yield (idx, idx * 8)
-          )
-          writeMask := addrOffset.mux[Bits](
-            0 -> B"0001",
-            1 -> B"0010",
-            2 -> B"0100",
-            3 -> B"1000"
-          )
-          dataMem.write(addrByWord, dataToWrite, mask = writeMask)
-        }
-        is(B"001") {
-          /* SH */
-          dataToWrite := reqData.regSource1.value |<< addrOffset(1).mux[UInt](
-            0 -> U"6'd0",
-            1 -> U"6'd16"
-          )
-          writeMask := addrOffset(1).mux[Bits](
-            0 -> B"01",
-            1 -> B"10",
-          )
-          dataMem.write(addrByWord, dataToWrite, mask = writeMask)
-        }
-        is(B"010") {
-          /* SW */
-          dataMem.write(addrByWord, reqData.regSource1.value)
+        switch(reqData.function0) {
+          is(B"000") {
+            /* SB */
+            dataToWrite := reqData.regSource1.value |<< addrOffset.muxList[UInt](
+              for (idx <- 0 until 4)
+                yield (idx, U(idx * 8, 8 bits))
+            )
+            writeMask := addrOffset.mux[Bits](
+              0 -> B"0001",
+              1 -> B"0010",
+              2 -> B"0100",
+              3 -> B"1000"
+            )
+            dataMem.write(addrByWord, dataToWrite, mask = writeMask)
+          }
+          is(B"001") {
+            /* SH */
+            dataToWrite := reqData.regSource1.value |<< addrOffset(1).asUInt.mux[UInt](
+              0 -> U"6'd0",
+              1 -> U"6'd16"
+            )
+            writeMask := addrOffset(1).asUInt.mux[Bits](
+              0 -> B"0011",
+              1 -> B"1100",
+            )
+            dataMem.write(addrByWord, dataToWrite, mask = writeMask)
+          }
+          is(B"010") {
+            /* SW */
+            dataMem.write(addrByWord, reqData.regSource1.value)
+          }
         }
       }
     }
