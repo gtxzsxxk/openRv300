@@ -43,7 +43,7 @@ case class InstExec() extends Component {
   bypassWPort.regValue := B"32'd0"
 
   def insertBypass(solvedThisStage: Boolean): Unit = {
-    bypassWPort.whichReg := ansPayload.writeRegDest
+    bypassWPort.whichReg := ansPayload.regDest
     bypassWPort.regValue := ansPayload.regDestValue
     bypassWPort.finished := Bool(solvedThisStage)
   }

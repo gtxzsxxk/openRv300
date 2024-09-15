@@ -37,7 +37,7 @@ case class MemAccess() extends Component {
   bypassWPort.regValue := B"32'd0"
 
   def insertBypass(): Unit = {
-    bypassWPort.whichReg := ansPayload.writeRegDest
+    bypassWPort.whichReg := ansPayload.regDest
     bypassWPort.regValue := ansPayload.regDestValue
     bypassWPort.finished := True
   }
