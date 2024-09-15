@@ -38,8 +38,8 @@ case class InstExec() extends Component {
   val bypassWPort = Reg(BypassWritePort())
   val bypassWPort = BypassWritePort().noCombLoopCheck
   val bypassValueReady = Reg(Bool()) init (False)
+  bypassValueReady := False
   io.bypassWritePort := bypassWPort
-
   bypassWPort.whichReg := U"5'd0"
   bypassWPort.finished := bypassValueReady
   bypassWPort.regValue := B"32'd0"
@@ -53,9 +53,6 @@ case class InstExec() extends Component {
   for (idx <- 0 until 2) {
     io.bypassReadPorts(idx).whichReg := U"5'd0"
     io.bypassReadPorts(idx).readEnable := False
-
-    io.bypassCheckPorts(idx).whichReg := U"5'd0"
-    io.bypassCheckPorts(idx).checkEnable := False
   }
 
   def checkRegSource(which: UInt, port: Int): Bool = {

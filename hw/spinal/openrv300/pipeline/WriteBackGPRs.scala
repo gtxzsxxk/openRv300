@@ -26,15 +26,14 @@ case class WriteBackGPRs() extends Component {
   bypassWPort.whichReg init (U"5'd0")
   bypassWPort.regValue init (B"32'd0")
   io.bypassWritePort := bypassWPort
-
   bypassWPort.whichReg := U"5'd0"
   bypassWPort.finished := False
   bypassWPort.regValue := B"32'd0"
 
-  def insertBypass(): Unit = {
+  def insertBypass(solvedThisStage: Boolean): Unit = {
     bypassWPort.whichReg := reqData.regDest
     bypassWPort.regValue := reqData.regDestValue
-    bypassWPort.finished := True
+    bypassWPort.finished := Bool(solvedThisStage)
   }
 
   when(io.request.valid && reqData.writeRegDest) {
@@ -42,6 +41,6 @@ case class WriteBackGPRs() extends Component {
     io.regWritePort.writeAddr := reqData.regDest
     io.regWritePort.writeData := reqData.regDestValue
 
-    insertBypass()
+    insertBypass(true)
   }
 }

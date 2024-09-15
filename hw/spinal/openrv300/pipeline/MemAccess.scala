@@ -32,15 +32,14 @@ case class MemAccess() extends Component {
   val bypassWPort = Reg(BypassWritePort())
   val bypassValueReady = Reg(Bool()) init (False)
   io.bypassWritePort := bypassWPort
-
   bypassWPort.whichReg := U"5'd0"
-  bypassWPort.finished := False
+  bypassWPort.finished := bypassValueReady
   bypassWPort.regValue := B"32'd0"
 
-  def insertBypass(): Unit = {
+  def insertBypass(solvedThisStage: Boolean): Unit = {
     bypassWPort.whichReg := ansPayload.regDest
     bypassWPort.regValue := ansPayload.regDestValue
-    bypassWPort.finished := True
+    bypassValueReady := Bool(solvedThisStage)
   }
 
   io.answer.setIdle()
@@ -74,7 +73,7 @@ case class MemAccess() extends Component {
             ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
           }
         }
-        insertBypass()
+        insertBypass(true)
       }
       is(MicroOp.STORE) {
         switch(reqData.function0) {
