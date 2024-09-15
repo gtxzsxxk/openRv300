@@ -12,7 +12,6 @@ case class InstExec() extends Component {
     val answer = master(Flow(ExecMemPayload()))
     val bypassWritePort = master(BypassWritePort())
     val bypassReadPorts = Vec.fill(2)(master(BypassReadPort()))
-    val bypassCheckPorts = Vec.fill(2)(master(BypassCheckPort()))
   }
 
   val reqData = io.request.payload

@@ -8,7 +8,6 @@ case class BypassUnit() extends Component {
     /* exec, mem, wb */
     val writePort = Vec.fill(3)(slave(BypassWritePort()))
     val execReadPorts = Vec.fill(2)(slave(BypassReadPort()))
-    val execCheckPorts = Vec.fill(2)(slave(BypassCheckPort()))
   }
 
   val ctx = WhenBuilder()
@@ -29,21 +28,6 @@ case class BypassUnit() extends Component {
       for (idx <- 1 until 3) {
         ctx.elsewhen(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg) {
           io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
-        }
-      }
-    }
-
-    when(io.execCheckPorts(rdIndex).checkEnable) {
-      /* 答案已计算完成 */
-      /* TODO: 检查这里的优先级 */
-      for (idx <- 0 until 1) {
-        ctx.when(io.writePort(idx).whichReg === io.execCheckPorts(rdIndex).whichReg) {
-          io.execCheckPorts(rdIndex).pending := io.writePort(idx).finished
-        }
-      }
-      for (idx <- 1 until 3) {
-        ctx.elsewhen(io.writePort(idx).whichReg === io.execCheckPorts(rdIndex).whichReg) {
-          io.execCheckPorts(rdIndex).pending := io.writePort(idx).finished
         }
       }
     }
