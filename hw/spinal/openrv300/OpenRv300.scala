@@ -51,7 +51,6 @@ case class OpenRv300() extends Component {
   wb.io.regWritePort <> gprs.io.writeBackPort
 
   exec.io.bypassReadPorts <> bypassUnit.io.execReadPorts
-  exec.io.bypassCheckPorts <> bypassUnit.io.execCheckPorts
   exec.io.bypassWritePort <> bypassUnit.io.writePort(0)
   mem.io.bypassWritePort <> bypassUnit.io.writePort(1)
   wb.io.bypassWritePort <> bypassUnit.io.writePort(2)
