@@ -109,6 +109,9 @@ case class MemAccess() extends Component {
           }
         }
       }
+      default {
+        insertBypass(true)
+      }
     }
   }
 }
