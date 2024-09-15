@@ -30,6 +30,7 @@ case class MemAccess() extends Component {
   writeMask := B"4'd0"
 
   val bypassWPort = Reg(BypassWritePort())
+  val bypassValueReady = Reg(Bool()) init (False)
   io.bypassWritePort := bypassWPort
 
   bypassWPort.whichReg := U"5'd0"

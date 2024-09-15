@@ -22,6 +22,9 @@ case class WriteBackGPRs() extends Component {
   io.regWritePort.writeData := B"32'd0"
 
   val bypassWPort = Reg(BypassWritePort())
+  bypassWPort.finished init (False)
+  bypassWPort.whichReg init (U"5'd0")
+  bypassWPort.regValue init (B"32'd0")
   io.bypassWritePort := bypassWPort
 
   bypassWPort.whichReg := U"5'd0"

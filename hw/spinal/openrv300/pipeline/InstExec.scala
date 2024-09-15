@@ -36,16 +36,18 @@ case class InstExec() extends Component {
   ansPayload.jumpPc := U"32'd0"
 
   val bypassWPort = Reg(BypassWritePort())
+  val bypassWPort = BypassWritePort().noCombLoopCheck
+  val bypassValueReady = Reg(Bool()) init (False)
   io.bypassWritePort := bypassWPort
 
   bypassWPort.whichReg := U"5'd0"
-  bypassWPort.finished := False
+  bypassWPort.finished := bypassValueReady
   bypassWPort.regValue := B"32'd0"
 
   def insertBypass(solvedThisStage: Boolean): Unit = {
     bypassWPort.whichReg := ansPayload.regDest
     bypassWPort.regValue := ansPayload.regDestValue
-    bypassWPort.finished := Bool(solvedThisStage)
+    bypassValueReady := Bool(solvedThisStage)
   }
 
   for (idx <- 0 until 2) {
