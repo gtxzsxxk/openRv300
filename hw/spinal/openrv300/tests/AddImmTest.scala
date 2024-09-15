@@ -34,7 +34,7 @@ object AddImmTest extends App {
 
     println(dut.fetch.instMem.getBigInt(0))
 
-    for (idx <- 0 until 8) {
+    for (idx <- 0 until 15) {
       println(dut.fetch.programCounter.toLong)
       dut.clockDomain.waitRisingEdge()
     }
