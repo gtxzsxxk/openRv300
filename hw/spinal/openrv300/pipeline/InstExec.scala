@@ -35,7 +35,6 @@ case class InstExec() extends Component {
   ansPayload.takeJump := False
   ansPayload.jumpPc := U"32'd0"
 
-  val bypassWPort = Reg(BypassWritePort())
   val bypassWPort = BypassWritePort().noCombLoopCheck
   val bypassValueReady = Reg(Bool()) init (False)
   bypassValueReady := False
