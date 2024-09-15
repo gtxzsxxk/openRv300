@@ -5,6 +5,7 @@ import spinal.core._
 import spinal.lib.{Flow, master}
 import spinal.lib.bus.amba4.axi._
 import pipeline._
+import pipeline.control.BypassUnit
 
 case class OpenRv300() extends Component {
   val io = new Bundle {
@@ -38,6 +39,8 @@ case class OpenRv300() extends Component {
   val wb = WriteBackGPRs()
 
   val gprs = GPRs()
+  val bypassUnit = BypassUnit()
+
 
   fetch.io.answer <> decode.io.request
   decode.io.answer <> exec.io.request
@@ -46,4 +49,10 @@ case class OpenRv300() extends Component {
 
   decode.io.regReadPorts <> gprs.io.decodePorts
   wb.io.regWritePort <> gprs.io.writeBackPort
+
+  exec.io.bypassReadPorts <> bypassUnit.io.execReadPorts
+  exec.io.bypassCheckPorts <> bypassUnit.io.execCheckPorts
+  exec.io.bypassWritePort <> bypassUnit.io.writePort(0)
+  mem.io.bypassWritePort <> bypassUnit.io.writePort(1)
+  wb.io.bypassWritePort <> bypassUnit.io.writePort(2)
 }
