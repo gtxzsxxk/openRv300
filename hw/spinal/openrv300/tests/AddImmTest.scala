@@ -10,6 +10,7 @@ object AddImmTest extends App {
     core.fetch.instMem.simPublic()
     core.mem.dataMem.simPublic()
     core.fetch.programCounter.simPublic()
+    core.gprs.registers.simPublic()
     core
   }.doSim { dut =>
     /*
@@ -40,9 +41,19 @@ object AddImmTest extends App {
 
     println(dut.fetch.instMem.getBigInt(0))
 
-    for (idx <- 0 until 20) {
+    for (idx <- 0 until 13) {
       println(dut.fetch.programCounter.toLong)
       dut.clockDomain.waitRisingEdge()
     }
+
+    assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
+    assert(dut.gprs.registers.getBigInt(1) == BigInt(1000))
+    assert(dut.gprs.registers.getBigInt(2) == BigInt(3000))
+    assert(dut.gprs.registers.getBigInt(3) == BigInt(2000))
+    assert(dut.gprs.registers.getBigInt(4) == BigInt(0))
+    assert(dut.gprs.registers.getBigInt(5) == BigInt(1000))
+    assert(dut.gprs.registers.getBigInt(6) == BigInt(555))
+    assert(dut.gprs.registers.getBigInt(7) == BigInt(666))
+    assert(dut.gprs.registers.getBigInt(8) == BigInt(777))
   }
 }
