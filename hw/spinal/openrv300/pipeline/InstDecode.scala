@@ -4,6 +4,7 @@ import spinal.core._
 import spinal.lib._
 import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
 import openrv300.isa._
+import openrv300.pipeline.control.BypassReadPort
 import openrv300.regfile.{GPRs, GPRsReadPort}
 
 case class InstDecode() extends Component {
@@ -11,9 +12,11 @@ case class InstDecode() extends Component {
     val request = slave(Flow(FetchPayload()))
     val answer = master(Flow(DecodePayload()))
     val regReadPorts = Vec.fill(2)(master(GPRsReadPort()))
+    val bypassReadPorts = Vec.fill(2)(master(BypassReadPort()))
+    val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
   }
 
-  for(idx <- 0 until 2) {
+  for (idx <- 0 until 2) {
     io.regReadPorts(idx).readEnable := False
     io.regReadPorts(idx).readAddr := U"5'd0"
   }
@@ -59,11 +62,47 @@ case class InstDecode() extends Component {
   ansPayload.function1 := B"7'd0"
   ansPayload.regSource0.which := U"5'd0"
   ansPayload.regSource0.value := B"32'd0"
+  ansPayload.regSource0.pending := False
   ansPayload.regSource1.which := U"5'd0"
   ansPayload.regSource1.value := B"32'd0"
+  ansPayload.regSource1.pending := False
   ansPayload.regDest := U"5'd0"
   ansPayload.imm := B"20'd0"
   ansPayload.sextImm := S"32'd0"
+
+  /* 从旁路读取寄存器数据，纯组合逻辑 */
+  for (idx <- 0 until 2) {
+    io.bypassReadPorts(idx).whichReg := U"5'd0"
+    io.bypassReadPorts(idx).readEnable := False
+    io.execRegisters(idx).pending := Mux(io.bypassReadPorts(idx).isBypassing, io.bypassReadPorts(idx).pending, False)
+  }
+
+  def setBypassChannel(which: UInt, port: Int): Unit = {
+    io.bypassReadPorts(port).whichReg := which
+    io.bypassReadPorts(port).readEnable := True
+  }
+
+  def checkStall(regSrcIdx: Int): Unit = {
+    when(io.execRegisters(regSrcIdx).pending) {
+      io.answer.setIdle()
+    }
+  }
+
+  for (port <- 0 until 2) {
+    when(io.bypassReadPorts(port).isBypassing) {
+      io.execRegisters(port).value := io.bypassReadPorts(port).regValue
+    } otherwise {
+      when(U(port, 2 bits) === U"2'd0") {
+        io.execRegisters(port).value := ansPayload.regSource0.value
+      } elsewhen (U(port, 2 bits) === U"2'd1") {
+        io.execRegisters(port).value := ansPayload.regSource1.value
+      } otherwise {
+        io.execRegisters(port).value := B"32'd0"
+      }
+    }
+  }
+  io.execRegisters(0).which := ansPayload.regSource0.which
+  io.execRegisters(1).which := ansPayload.regSource1.which
 
   io.answer.setIdle()
 
@@ -94,6 +133,9 @@ case class InstDecode() extends Component {
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
 
         regNotUsed(1)
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
       }
       is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
         ansPayload.microOp := MicroOp.BRANCH
@@ -104,6 +146,11 @@ case class InstDecode() extends Component {
             reqData.instruction(11 downto 8), B"0").asSInt.resize(32)
         ansPayload.regSource0 := genRegSourceBundle(reqData.instruction, 19, 15, 0)
         ansPayload.regSource1 := genRegSourceBundle(reqData.instruction, 24, 20, 1)
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
+        setBypassChannel(ansPayload.regSource0.which, 1)
+        checkStall(1)
       }
       is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
         ansPayload.microOp := MicroOp.LOAD
@@ -114,6 +161,9 @@ case class InstDecode() extends Component {
         ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
 
         regNotUsed(1)
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
       }
       is(RV32I.SB, RV32I.SH, RV32I.SW) {
         ansPayload.microOp := MicroOp.STORE
@@ -134,6 +184,9 @@ case class InstDecode() extends Component {
         ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
 
         regNotUsed(1)
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
       }
       is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
         when(reqData.instruction === RV32I.SLLI) {
@@ -149,6 +202,9 @@ case class InstDecode() extends Component {
         ansPayload.imm := reqData.instruction(24 downto 20).resized
 
         regNotUsed(1)
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
       }
       is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU, RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND) {
         when(reqData.instruction =/= RV32I.SLL && reqData.instruction =/= RV32I.SRL && reqData.instruction =/= RV32I.SRA) {
@@ -167,6 +223,11 @@ case class InstDecode() extends Component {
 
         ansPayload.function0 := reqData.instruction(14 downto 12)
         ansPayload.function1 := reqData.instruction(30).asBits.resized
+
+        setBypassChannel(ansPayload.regSource0.which, 0)
+        checkStall(0)
+        setBypassChannel(ansPayload.regSource0.which, 1)
+        checkStall(1)
       }
       is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
         /* decode as nop */
