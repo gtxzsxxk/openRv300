@@ -52,8 +52,20 @@ case class InstDecode() extends Component {
     regNotUsed(1)
   }
 
-  val reqData = io.request.payload
+  val reqData = FetchPayload()
   val ansPayload = Reg(DecodePayload())
+
+  /* 流水线停顿重放 */
+  val justReset = Reg(Bool()) init (True)
+  val lastRequest = Reg(FetchPayload())
+  lastRequest := io.request.payload
+  /* 上一条指令译码后，源操作数全部满足，才开始本条指令译码，否则重放上条指令进行译码 */
+  when(io.answer.valid || justReset) {
+    reqData := io.request.payload
+    justReset := False
+  } otherwise {
+    reqData := lastRequest
+  }
 
   ansPayload.microOp := B"7'd0"
   ansPayload.instPc := reqData.pcAddr
