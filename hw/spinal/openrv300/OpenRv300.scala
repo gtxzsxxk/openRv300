@@ -56,4 +56,6 @@ case class OpenRv300() extends Component {
   wb.io.bypassWritePort <> bypassUnit.io.writePort(2)
 
   decode.io.execRegisters <> exec.io.execRegisters
+
+  fetch.io.noReplay := decode.io.answer.valid
 }

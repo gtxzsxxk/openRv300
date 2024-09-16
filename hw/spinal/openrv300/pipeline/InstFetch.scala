@@ -6,6 +6,7 @@ import payload.FetchPayload
 
 case class InstFetch() extends Component {
   val io = new Bundle {
+    val noReplay = in port Bool()
     val answer = master(Flow(FetchPayload()))
   }
 
@@ -13,9 +14,20 @@ case class InstFetch() extends Component {
   val programCounter = RegInit(U"32'h0000_0000")
 
   val payload = Reg(FetchPayload())
-  payload.pcAddr := programCounter
-  payload.instruction := instMem(programCounter(9 downto 2))
   io.answer.push(payload)
 
-  programCounter := programCounter + 4
+  val justReset = Reg(Bool()) init (True)
+
+  when(!io.noReplay && (!justReset)) {
+    payload.pcAddr := payload.pcAddr
+    payload.instruction := payload.instruction
+
+    programCounter := payload.pcAddr + 4
+  } otherwise {
+    justReset := False
+    payload.pcAddr := programCounter
+    payload.instruction := instMem(programCounter(9 downto 2))
+
+    programCounter := programCounter + 4
+  }
 }
