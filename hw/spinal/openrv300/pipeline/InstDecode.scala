@@ -48,14 +48,19 @@ case class InstDecode() extends Component {
 
   /* 流水线停顿重放 */
   val justReset = Reg(Bool()) init (True)
-  val lastRequest = Reg(io.request.payload)
-  val lastDecodeValid = Reg(io.answer.valid)
+  val lastRequest = RegNext(io.request.payload)
+  val lastDecodeValid = RegNext(io.answer.valid)
   /* 上一条指令译码后，源操作数全部满足，才开始本条指令译码，否则重放上条指令进行译码 */
-  when(lastDecodeValid || justReset) {
-    reqData := io.request.payload
+  when(justReset) {
     justReset := False
+    reqData.instruction := B"32'h00000013"
+    reqData.pcAddr := U"32'd0"
   } otherwise {
-    reqData := lastRequest
+    when(lastDecodeValid) {
+      reqData := io.request.payload
+    } otherwise {
+      reqData := lastRequest
+    }
   }
 
   ansPayload.microOp := B"7'd0"
@@ -76,11 +81,6 @@ case class InstDecode() extends Component {
   /* 从旁路读取寄存器数据，纯组合逻辑 */
   for (idx <- 0 until 2) {
     io.execRegisters(idx).pending := Mux(io.bypassReadPorts(idx).isBypassing, io.bypassReadPorts(idx).pending, False)
-  }
-
-  def setBypassChannel(which: UInt, port: Int): Unit = {
-    io.bypassReadPorts(port).whichReg := which
-    io.bypassReadPorts(port).readEnable := True
   }
 
   def checkStall(regSrcIdx: Int): Unit = {
