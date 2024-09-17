@@ -32,7 +32,7 @@ object SimpleLoadTest extends App {
 
     println(dut.fetch.instMem.getBigInt(0))
 
-    for (idx <- 0 until 13) {
+    for (idx <- 0 until 9) {
       println(dut.fetch.programCounter.toLong)
       dut.clockDomain.waitRisingEdge()
     }
