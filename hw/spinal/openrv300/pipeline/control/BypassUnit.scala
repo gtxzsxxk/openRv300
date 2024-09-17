@@ -20,23 +20,21 @@ case class BypassUnit() extends Component {
 
   /* 旁路网络 */
   for (rdIndex <- 0 until 2) {
-    when(io.execReadPorts(rdIndex).readEnable) {
-      /* 答案已计算完成 */
-      /* TODO: 检查这里的优先级 */
-      for (idx <- 0 until 1) {
-        ctx.when(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg && io.execReadPorts(rdIndex).whichReg =/= U"5'd0") {
-          io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
-          io.execReadPorts(rdIndex).pending := !io.writePort(idx).finished
-          io.execReadPorts(rdIndex).isBypassing := True
-        }
-      }
-      for (idx <- 1 until 3) {
-        ctx.elsewhen(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg && io.execReadPorts(rdIndex).whichReg =/= U"5'd0") {
-          io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
-          io.execReadPorts(rdIndex).pending := !io.writePort(idx).finished
-          io.execReadPorts(rdIndex).isBypassing := True
-        }
+    /* TODO: 检查这里的优先级 */
+    for (idx <- 0 until 1) {
+      ctx.when(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg && io.execReadPorts(rdIndex).whichReg =/= U"5'd0") {
+        io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
+        io.execReadPorts(rdIndex).pending := !io.writePort(idx).finished
+        io.execReadPorts(rdIndex).isBypassing := True
       }
     }
+    for (idx <- 1 until 3) {
+      ctx.elsewhen(io.writePort(idx).whichReg === io.execReadPorts(rdIndex).whichReg && io.execReadPorts(rdIndex).whichReg =/= U"5'd0") {
+        io.execReadPorts(rdIndex).regValue := io.writePort(idx).regValue
+        io.execReadPorts(rdIndex).pending := !io.writePort(idx).finished
+        io.execReadPorts(rdIndex).isBypassing := True
+      }
+    }
+
   }
 }

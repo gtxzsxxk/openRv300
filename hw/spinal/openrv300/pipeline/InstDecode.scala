@@ -75,8 +75,6 @@ case class InstDecode() extends Component {
 
   /* 从旁路读取寄存器数据，纯组合逻辑 */
   for (idx <- 0 until 2) {
-    io.bypassReadPorts(idx).whichReg := U"5'd0"
-    io.bypassReadPorts(idx).readEnable := False
     io.execRegisters(idx).pending := Mux(io.bypassReadPorts(idx).isBypassing, io.bypassReadPorts(idx).pending, False)
   }
 

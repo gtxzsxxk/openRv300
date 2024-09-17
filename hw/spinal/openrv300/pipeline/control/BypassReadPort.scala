@@ -5,13 +5,12 @@ import spinal.lib._
 
 case class BypassReadPort() extends Bundle with IMasterSlave {
   val whichReg = UInt(5 bits)
-  val readEnable = Bool()
   val pending = Bool()
   val isBypassing = Bool()
   val regValue = Bits(32 bits)
 
   override def asMaster(): Unit = {
-    out(whichReg, readEnable)
+    out(whichReg)
     in(regValue, pending, isBypassing)
   }
 }
