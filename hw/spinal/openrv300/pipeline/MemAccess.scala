@@ -79,7 +79,7 @@ case class MemAccess() extends Component {
         switch(reqData.function0) {
           is(B"000") {
             /* SB */
-            dataToWrite := reqData.regSource1.value |<< addrOffset.muxList[UInt](
+            dataToWrite := reqData.registerSources(1).value |<< addrOffset.muxList[UInt](
               for (idx <- 0 until 4)
                 yield (idx, U(idx * 8, 8 bits))
             )
@@ -93,7 +93,7 @@ case class MemAccess() extends Component {
           }
           is(B"001") {
             /* SH */
-            dataToWrite := reqData.regSource1.value |<< addrOffset(1).asUInt.mux[UInt](
+            dataToWrite := reqData.registerSources(1).value |<< addrOffset(1).asUInt.mux[UInt](
               0 -> U"6'd0",
               1 -> U"6'd16"
             )
@@ -105,7 +105,7 @@ case class MemAccess() extends Component {
           }
           is(B"010") {
             /* SW */
-            dataMem.write(addrByWord, reqData.regSource1.value)
+            dataMem.write(addrByWord, reqData.registerSources(1).value)
           }
         }
       }

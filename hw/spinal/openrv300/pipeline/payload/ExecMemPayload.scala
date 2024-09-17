@@ -11,9 +11,8 @@ case class ExecMemPayload() extends Bundle {
   val function0 = Bits(3 bits)
   val function1 = Bits(7 bits)
 
-  val regSource0 = RegisterSourceBundle()
-  val regSource1 = RegisterSourceBundle()
   val regDest = UInt(5 bits)
+  val registerSources = Vec.fill(2)(RegisterSourceBundle())
 
   val imm = Bits(20 bits)
   val sextImm = SInt(32 bits)

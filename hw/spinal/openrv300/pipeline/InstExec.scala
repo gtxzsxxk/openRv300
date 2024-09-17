@@ -22,9 +22,8 @@ case class InstExec() extends Component {
   ansPayload.instruction := reqData.instruction
   ansPayload.function0 := reqData.function0
   ansPayload.function1 := reqData.function1
-  ansPayload.regSource0 := reqData.regSource0
-  ansPayload.regSource1 := reqData.regSource1
   ansPayload.regDest := reqData.regDest
+  ansPayload.registerSources := io.execRegisters
   ansPayload.imm := reqData.imm
   ansPayload.sextImm := reqData.sextImm
 

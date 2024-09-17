@@ -11,9 +11,6 @@ case class DecodePayload() extends Bundle {
 
   val function0 = Bits(3 bits)
   val function1 = Bits(7 bits)
-
-  val regSource0 = RegisterSourceBundle()
-  val regSource1 = RegisterSourceBundle()
   val regDest = UInt(5 bits)
 
   val imm = Bits(20 bits)
