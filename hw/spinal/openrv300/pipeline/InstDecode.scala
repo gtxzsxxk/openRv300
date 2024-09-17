@@ -32,15 +32,6 @@ case class InstDecode() extends Component {
     bundle
   }
 
-  def regNotUsed(port: Int): Unit = {
-    io.regReadPorts(port).readEnable := False
-  }
-
-  def regBothNotUsed(): Unit = {
-    regNotUsed(0)
-    regNotUsed(1)
-  }
-
   def NOP(): Unit = {
     ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
     ansPayload.function0 := B"000"
@@ -116,9 +107,6 @@ case class InstDecode() extends Component {
   io.execRegisters(0).which := ansPayload.regSource0.which
   io.execRegisters(1).which := ansPayload.regSource1.which
 
-  io.answer.setIdle()
-
-  when(io.request.valid) {
     io.answer.push(ansPayload)
 
     switch(reqData.instruction) {
@@ -254,5 +242,4 @@ case class InstDecode() extends Component {
         NOP()
       }
     }
-  }
 }
