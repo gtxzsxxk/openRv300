@@ -27,5 +27,5 @@ case class GPRs() extends Component {
     }
   }
 
-  registers.write(io.writeBackPort.writeAddr, io.writeBackPort.writeData, enable = io.writeBackPort.writeEnable)
+  registers.write(io.writeBackPort.writeAddr, Mux(io.writeBackPort.writeAddr =/= U"5'd0", io.writeBackPort.writeData, B"32'd0"), enable = io.writeBackPort.writeEnable)
 }
