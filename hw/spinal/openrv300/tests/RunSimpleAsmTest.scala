@@ -1,0 +1,67 @@
+package openrv300.tests
+
+import sys.process._
+import java.nio.file.{Files, Paths}
+import openrv300.Config.{abi, arch, riscvToolchain}
+import openrv300.{Config, OpenRv300}
+import spinal.core._
+import spinal.core.sim._
+
+object RunSimpleAsmTest extends App {
+  case class
+
+  val cwd = System.getProperty("user.dir")
+  val asmFilePath = "hw/spinal/openrv300/tests/assemblyWithNoCRT"
+  val asmFile = "StoreAndLoad"
+  val srcFullPath = Paths.get(cwd,Paths.get(asmFilePath,asmFile+".s").toString).toString
+  val objFullPath = Paths.get(cwd,Paths.get(asmFilePath,asmFile+".o").toString).toString
+  val binFullPath = Paths.get(cwd,Paths.get(asmFilePath,asmFile+".bin").toString).toString
+
+  val compileCmd = s"$riscvToolchain-gcc -c $srcFullPath -o $objFullPath -march=$arch -mabi=$abi"
+  compileCmd.!
+
+  val objCopyCmd = s"$riscvToolchain-objcopy -O binary --only-section=.text $objFullPath $binFullPath"
+  objCopyCmd.!
+
+  val binaryData = Files.readAllBytes(Paths.get(binFullPath))
+
+  Config.sim.compile {
+    val core = OpenRv300()
+    core.fetch.instMem.simPublic()
+    core.mem.dataMem.simPublic()
+    core.fetch.programCounter.simPublic()
+    core.gprs.registers.simPublic()
+    core
+  }.doSim { dut =>
+    var cnt = 0
+    binaryData.grouped(4).foreach { bytes =>
+      // 小端拼接，将 bytes(0) 放到最低位，bytes(3) 放到最高位
+      val word = (bytes(0) & 0xFF) |
+        ((bytes(1) & 0xFF) << 8) |
+        ((bytes(2) & 0xFF) << 16) |
+        ((bytes(3) & 0xFF) << 24)
+
+      dut.fetch.instMem.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
+      cnt += 1
+    }
+
+    dut.clockDomain.forkStimulus(10)
+    dut.clockDomain.fallingEdge()
+    dut.clockDomain.assertReset()
+    dut.clockDomain.waitRisingEdge()
+    dut.clockDomain.deassertReset()
+
+    println(dut.fetch.instMem.getBigInt(0))
+
+    for (idx <- 0 until 16) {
+      println(dut.fetch.programCounter.toLong)
+      dut.clockDomain.waitRisingEdge()
+    }
+
+    assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
+    assert(dut.gprs.registers.getBigInt(1) == BigInt(4))
+    assert(dut.gprs.registers.getBigInt(2) == BigInt(6))
+    assert(dut.gprs.registers.getBigInt(3) == BigInt(11))
+    assert(dut.gprs.registers.getBigInt(4) == BigInt(13))
+  }
+}
