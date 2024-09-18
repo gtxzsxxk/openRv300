@@ -57,5 +57,7 @@ case class OpenRv300() extends Component {
 
   decode.io.execRegisters <> exec.io.execRegisters
 
-  fetch.io.noReplay := decode.io.answer.valid
+  fetch.io.needReplay := decode.io.stall
+
+  exec.io.isStalling := decode.io.stall
 }
