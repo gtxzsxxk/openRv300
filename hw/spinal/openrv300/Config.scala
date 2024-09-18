@@ -13,4 +13,8 @@ object Config {
   )
 
   def sim = SimConfig.withConfig(spinal).withVcdWave
+
+  def riscvToolchain = "riscv64-unknown-elf"
+  def arch = "rv32i"
+  def abi = "ilp32"
 }
