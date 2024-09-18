@@ -12,6 +12,7 @@ case class InstExec() extends Component {
     val answer = master(Flow(ExecMemPayload()))
     val bypassWritePort = master(BypassWritePort())
     val execRegisters = in port Vec.fill(2)(RegisterSourceBundle())
+    val isStalling = in port Bool()
   }
 
   val reqData = io.request.payload
@@ -51,11 +52,15 @@ case class InstExec() extends Component {
     io.execRegisters(idx).value
   }
 
-  io.answer.setIdle()
+  io.answer.push(ansPayload)
 
-  when(io.request.valid) {
-    io.answer.push(ansPayload)
-
+  when(io.isStalling) {
+    /* 译出NOP */
+    ansPayload.writeRegDest := True
+    ansPayload.regDest := U"5'd0"
+    ansPayload.regDestValue := B"32'd0"
+    insertBypass(true)
+  } otherwise  {
     switch(reqData.microOp) {
       is(MicroOp.LUI) {
         ansPayload.writeRegDest := True
