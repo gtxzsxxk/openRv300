@@ -15,6 +15,7 @@ case class InstDecode() extends Component {
     val bypassReadPorts = Vec.fill(2)(master(BypassReadPort()))
     /* 纯组合逻辑 */
     val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
+    val stall = out port Bool()
   }
 
   /* 此时源寄存器不再随着ans payload寄存，所以需要使用寄存器 */
@@ -58,14 +59,13 @@ case class InstDecode() extends Component {
   /* 流水线停顿重放 */
   val justReset = Reg(Bool()) init (True)
   val lastRequest = RegNext(io.request.payload)
-  val lastDecodeValid = RegNext(io.answer.valid)
   /* 上一条指令译码后，源操作数全部满足，才开始本条指令译码，否则重放上条指令进行译码 */
   when(justReset) {
     justReset := False
     reqData.instruction := B"32'h00000013"
     reqData.pcAddr := U"32'd0"
   } otherwise {
-    when(lastDecodeValid) {
+    when(!io.stall) {
       reqData := io.request.payload
     } otherwise {
       reqData := lastRequest
@@ -88,9 +88,11 @@ case class InstDecode() extends Component {
     io.bypassReadPorts(idx).whichReg := registerSourceGPRs(idx).which
   }
 
+  io.stall := False
+
   def checkStall(regSrcIdx: Int): Unit = {
     when(io.execRegisters(regSrcIdx).pending) {
-      io.answer.setIdle()
+      io.stall := True
     }
   }
 
