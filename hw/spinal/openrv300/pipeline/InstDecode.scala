@@ -105,6 +105,30 @@ case class InstDecode() extends Component {
   }
 
   io.answer.push(ansPayload)
+
+  switch(ansPayload.instruction) {
+    is(RV32I.JALR) {
+      checkStall(0)
+    }
+    is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
+      checkStall(0)
+      checkStall(1)
+    }
+    is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
+      checkStall(0)
+    }
+    is(RV32I.ADDI, RV32I.SLTI, RV32I.SLTIU, RV32I.XORI, RV32I.ORI, RV32I.ANDI) {
+      checkStall(0)
+    }
+    is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
+      checkStall(0)
+    }
+    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU, RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND) {
+      checkStall(0)
+      checkStall(1)
+    }
+  }
+
   switch(reqData.instruction) {
     is(RV32I.LUI, RV32I.AUIPC) {
       ansPayload.microOp := Mux(reqData.instruction === RV32I.LUI, MicroOp.LUI, MicroOp.AUIPC)
@@ -123,8 +147,6 @@ case class InstDecode() extends Component {
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
       ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
-
-      checkStall(0)
     }
     is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
       ansPayload.microOp := MicroOp.BRANCH
@@ -135,9 +157,6 @@ case class InstDecode() extends Component {
           reqData.instruction(11 downto 8), B"0").asSInt.resize(32)
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       genRegSourceBundle(reqData.instruction, 24, 20, 1)
-
-      checkStall(0)
-      checkStall(1)
     }
     is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
       ansPayload.microOp := MicroOp.LOAD
@@ -146,8 +165,6 @@ case class InstDecode() extends Component {
 
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-
-      checkStall(0)
     }
     is(RV32I.SB, RV32I.SH, RV32I.SW) {
       ansPayload.microOp := MicroOp.STORE
@@ -166,8 +183,6 @@ case class InstDecode() extends Component {
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
-
-      checkStall(0)
     }
     is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
       when(reqData.instruction === RV32I.SLLI) {
@@ -181,8 +196,6 @@ case class InstDecode() extends Component {
       reqData.instruction(11 downto 7).asUInt
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       ansPayload.imm := reqData.instruction(24 downto 20).resized
-
-      checkStall(0)
     }
     is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU, RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND) {
       when(reqData.instruction =/= RV32I.SLL && reqData.instruction =/= RV32I.SRL && reqData.instruction =/= RV32I.SRA) {
@@ -201,9 +214,6 @@ case class InstDecode() extends Component {
 
       ansPayload.function0 := reqData.instruction(14 downto 12)
       ansPayload.function1 := reqData.instruction(30).asBits.resized
-
-      checkStall(0)
-      checkStall(1)
     }
     is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
       /* decode as nop */
