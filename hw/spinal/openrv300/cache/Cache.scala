@@ -1,23 +1,15 @@
 package openrv300.cache
 
+import openrv300.Config.axiConfig
 import spinal.core._
 import spinal.lib._
 import spinal.lib.bus.amba4.axi._
 import spinal.lib.fsm._
 
-class Cache(ways: Int) extends Component {
+case class Cache(ways: Int) extends Component {
   val io = new Bundle {
     val corePort = slave(CacheCorePort())
-    val memPort = master(Axi4(Axi4Config(
-      addressWidth = 32,
-      dataWidth = 32,
-      idWidth = 4,
-      useRegion = false,
-      useLock = false,
-      useCache = false,
-      useQos = false,
-      useProt = false,
-    )))
+    val memPort = master(Axi4(axiConfig))
   }
 
   def cacheLineSize: Int = widthOf(CacheLine())
