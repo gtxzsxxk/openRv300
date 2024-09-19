@@ -8,7 +8,6 @@ import spinal.core._
 import spinal.core.sim._
 
 object RunSimpleAsmTest extends App {
-  case class
   case class AssemblyTest(asmFile: String, cycle: Int, verify: (OpenRv300) => Unit)
 
   val tests = Seq(
@@ -19,6 +18,13 @@ object RunSimpleAsmTest extends App {
       assert(dut.gprs.registers.getBigInt(3) == BigInt(11))
       assert(dut.gprs.registers.getBigInt(4) == BigInt(13))
     }),
+    AssemblyTest("StoreHalfWord", 16, (dut) => {
+      assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
+      assert(dut.gprs.registers.getBigInt(1) == BigInt(0x12345678L))
+      assert(dut.gprs.registers.getBigInt(2) == BigInt(0xfbfbfafaL))
+      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x4))
+      assert(dut.gprs.registers.getBigInt(4) == BigInt(0x5678fafaL))
+    })
   )
 
   val cwd = System.getProperty("user.dir")
