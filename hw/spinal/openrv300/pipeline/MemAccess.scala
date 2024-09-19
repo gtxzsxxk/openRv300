@@ -44,12 +44,13 @@ case class MemAccess() extends Component {
 
   io.answer.setIdle()
 
-  /* TODO: 处理地址越界，产生异常 */
+  when(ansPayload.writeRegDest) {
+    insertBypass(true)
+  }
 
+  /* TODO: 处理地址越界，产生异常 */
   when(io.request.valid) {
     io.answer.push(ansPayload)
-
-    insertBypass(true)
 
     switch(reqData.microOp) {
       is(MicroOp.LOAD) {
