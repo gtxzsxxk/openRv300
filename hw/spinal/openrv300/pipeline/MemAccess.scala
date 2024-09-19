@@ -49,6 +49,8 @@ case class MemAccess() extends Component {
   when(io.request.valid) {
     io.answer.push(ansPayload)
 
+    insertBypass(true)
+
     switch(reqData.microOp) {
       is(MicroOp.LOAD) {
         switch(reqData.function0) {
@@ -73,7 +75,6 @@ case class MemAccess() extends Component {
             ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
           }
         }
-        insertBypass(true)
       }
       is(MicroOp.STORE) {
         switch(reqData.function0) {
@@ -108,9 +109,6 @@ case class MemAccess() extends Component {
             dataMem.write(addrByWord, reqData.registerSources(1).value)
           }
         }
-      }
-      default {
-        insertBypass(true)
       }
     }
   }
