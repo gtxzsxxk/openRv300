@@ -144,9 +144,9 @@ class Cache(ways: Int) extends Component {
         /* 传输64个字节 */
         aw.payload.len := 64 - 1
         /* 一次传4个字节 */
-        aw.payload.size := 2
+        aw.payload.size := Axi4.size.BYTE_4
         /* 增量burst */
-        aw.payload.burst := 1
+        aw.payload.burst := Axi4.burst.INCR
 
         when(aw.ready) {
           goto(writeDirty)
@@ -180,7 +180,7 @@ class Cache(ways: Int) extends Component {
       b.ready := True
       when(b.valid) {
         /* TODO: 处理异常 */
-        when(b.resp === 0) {
+        when(b.resp === Axi4.resp.OKAY) {
           b.setIdle()
           goto(readCacheLine)
         }
@@ -196,9 +196,9 @@ class Cache(ways: Int) extends Component {
       /* 传输64个字节 */
       ar.payload.len := 64 - 1
       /* 一次传4个字节 */
-      ar.payload.size := 2
+      ar.payload.size := Axi4.size.BYTE_4
       /* 增量burst */
-      ar.payload.burst := 1
+      ar.payload.burst := Axi4.burst.INCR
 
       when(ar.ready) {
         ar.setIdle()
@@ -210,7 +210,7 @@ class Cache(ways: Int) extends Component {
         r.ready := True
         when(r.valid) {
           /* TODO: 处理异常 */
-          when(r.resp === 0) {
+          when(r.resp === Axi4.resp.OKAY) {
             val line = cacheMemories(whichWayToEvict)(fsmIndex).as(CacheLine())
             line.valid := True
             line.dirty := False
