@@ -24,12 +24,21 @@ object RunSimpleAsmTest extends App {
       assert(dut.gprs.registers.getBigInt(2) == BigInt(0xfbfbfafaL))
       assert(dut.gprs.registers.getBigInt(3) == BigInt(0x4))
       assert(dut.gprs.registers.getBigInt(4) == BigInt(0x5678fafaL))
+    }),
+    AssemblyTest("LoadAndLoad", 25, (dut) => {
+      assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
+      assert(dut.gprs.registers.getBigInt(1) == BigInt(0x04))
+      assert(dut.gprs.registers.getBigInt(2) == BigInt(0x08))
+      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x99))
+      assert(dut.gprs.registers.getBigInt(4) == BigInt(0x99))
+      assert(dut.gprs.registers.getBigInt(5) == BigInt(0x9B))
+      assert(dut.gprs.registers.getBigInt(6) == BigInt(0x88))
     })
   )
 
   val cwd = System.getProperty("user.dir")
   val asmFilePath = "hw/spinal/openrv300/tests/assemblyWithNoCRT"
-  tests.foreach {tst =>
+  tests.foreach { tst =>
     val srcFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.asmFile + ".s").toString).toString
     val objFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.asmFile + ".o").toString).toString
     val binFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.asmFile + ".bin").toString).toString
