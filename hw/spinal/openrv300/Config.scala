@@ -28,5 +28,5 @@ object Config {
       useCache = false,
       useQos = false,
       useProt = false,
-
+  )
 }
