@@ -6,7 +6,7 @@ import spinal.lib._
 import spinal.lib.bus.amba4.axi._
 import spinal.lib.fsm._
 
-class DDRSim extends Component {
+case class DDRSim() extends Component {
   val io = new Bundle {
     val memPort = slave(Axi4(axiConfig))
   }
@@ -30,7 +30,7 @@ class DDRSim extends Component {
     val addr = Reg(UInt(32 bits))
     val addrByWord = Cat(addr(31 downto 2), U"2'd0").asUInt
     val len = Reg(UInt(8 bits))
-    val size = Reg(Bits(3 bits))
+    val size = Reg(UInt(3 bits))
     val burst = Reg(Bits(2 bits))
     val awReady = Reg(Bool())
     val arReady = Reg(Bool())
@@ -78,6 +78,7 @@ class DDRSim extends Component {
       when(w.valid) {
         w.ready := True
         simMemory.write(addrByWord + counter, w.payload.data)
+        simMemory.write((addrByWord + counter).resized, w.payload.data)
         counter := counter + 4
         when(w.last) {
           goto(writeResponse)
@@ -101,7 +102,7 @@ class DDRSim extends Component {
       when(r.ready) {
         when(counter <= len) {
           r.payload.resp := Axi4.resp.OKAY
-          r.payload.data := simMemory(addrByWord + counter)
+          r.payload.data := simMemory((addrByWord + counter).resized)
           r.valid := True
           r.last := counter === len
           counter := counter + 4
