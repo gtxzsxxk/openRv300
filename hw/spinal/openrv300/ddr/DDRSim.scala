@@ -1,4 +1,4 @@
-package openrv300.utils
+package openrv300.ddr
 
 import openrv300.Config.axiConfig
 import spinal.core._

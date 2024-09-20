@@ -1,7 +1,7 @@
 package openrv300.tests
 
 import openrv300.Config
-import openrv300.utils.DDRSim
+import openrv300.ddr.DDRSim
 import spinal.core._
 import spinal.core.sim._
 import spinal.lib.bus.amba4.axi._
