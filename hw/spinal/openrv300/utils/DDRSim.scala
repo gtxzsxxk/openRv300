@@ -91,12 +91,11 @@ case class DDRSim() extends Component {
 
     doRead.onEntry(counter := 0).whenIsActive {
       when(r.ready) {
-        /* TODO: 不能使用len */
         when(counter <= len) {
           r.payload.resp := Axi4.resp.OKAY
           r.payload.data := simMemory((addrByWord + counter).resized)
           r.valid := True
-          r.last := counter === len
+          r.last := counter === (len + 1 - 4)
           counter := counter + 4
         } otherwise {
           r.setIdle()
