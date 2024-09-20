@@ -17,6 +17,12 @@ class DDRSim extends Component {
   val ar = io.memPort.ar
   val r = io.memPort.r
 
+  aw.setBlocked()
+  w.setBlocked()
+  b.setIdle()
+  ar.setBlocked()
+  r.setIdle()
+
   val simMemory = Mem(Bits(32 bits), wordCount = 0x02000000)
 
   val fsm = new StateMachine {
