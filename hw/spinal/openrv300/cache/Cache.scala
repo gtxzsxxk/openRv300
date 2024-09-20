@@ -14,7 +14,11 @@ case class Cache(ways: Int) extends Component {
 
   def cacheLineSize: Int = widthOf(CacheLine())
 
-  val cacheMemories = Vec.fill(ways)(Mem(Bits(cacheLineSize bits), wordCount = 64))
+  def cacheGroupBits: Int = ways * cacheLineSize
+
+  val cacheMemories = Mem(Bits(cacheGroupBits bits), wordCount = 64)
+
+  def getCacheLine(way: UInt, index: UInt): CacheLine = cacheMemories(index).subdivideIn(2 slices)(way).as(CacheLine())
 
   val tag = io.corePort.address(31 downto 12)
   val index = io.corePort.address(11 downto 6)
@@ -22,20 +26,21 @@ case class Cache(ways: Int) extends Component {
   val offsetByWord = io.corePort.address(5 downto 2)
 
   val cacheLine = CacheLine()
+
   val cacheHitVec = Vec.fill(ways)(Bool())
   val cacheLineValids = Vec.fill(ways)(Bool())
   cacheLine.valid := False
 
-  val (hit, whichWay): (Bool, UInt) = cacheHitVec.sFindFirst(_)
+  val (hit, whichWay): (Bool, UInt) = cacheHitVec.sFindFirst(_ === True)
   val (hasFreeLine, freeLineWay): (Bool, UInt) = cacheLineValids.sFindFirst(_ === False)
 
   for (way <- 0 until ways) {
     cacheHitVec(way) := False
-    when(cacheMemories(way)(index).as(CacheLine()).tag === tag && cacheMemories(way)(index).as(CacheLine()).valid) {
-      cacheLine := cacheMemories(way)(index).as(CacheLine())
+    when(getCacheLine(way, index).tag === tag && getCacheLine(way, index).valid) {
+      cacheLine := getCacheLine(way, index)
       cacheHitVec(way) := True
     }
-    cacheLineValids(way) := cacheMemories(way)(index).as(CacheLine()).valid
+    cacheLineValids(way) := getCacheLine(way, index).valid
   }
 
   val fsm = new StateMachine {
@@ -48,9 +53,11 @@ case class Cache(ways: Int) extends Component {
     val readCnt = Reg(UInt(6 bits))
 
     val fsmIsWrite = Reg(Bool())
+    val fsmWriteValue = Reg(Bits(32 bits))
     val fsmTag = Reg(UInt(20 bits))
     val fsmIndex = Reg(UInt(6 bits))
     val fsmOffset = Reg(UInt(6 bits))
+    val fsmOffsetByWord = fsmOffset(5 downto 2)
     val fsmNeedStall = Reg(Bool())
 
     val cacheNormalWorking = new State with EntryPoint
@@ -67,15 +74,16 @@ case class Cache(ways: Int) extends Component {
         whichWayToEvictCnt := U"64'hFFFF_FFFF_FFFF_FFFF"
         writeDirtyFlag := False
         when(hit) {
+          val group = cacheMemories(index)
+          group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
           when(io.corePort.isWrite) {
             cacheLine.data(offsetByWord) := io.corePort.writeValue
             cacheLine.dirty := True
-            cacheMemories(whichWay).write(index, cacheLine.asBits)
           } otherwise {
-            io.corePort.readValue := cacheLine.data
-            cacheLine.counter := cacheLine.counter + 1
-            cacheMemories(whichWay).write(index, cacheLine.asBits)
+            io.corePort.readValue := cacheLine.data(offsetByWord)
           }
+          cacheLine.counter := cacheLine.counter + 1
+          cacheMemories.write(index, group)
           io.corePort.needStall := False
         } otherwise {
           /* cache miss */
@@ -83,6 +91,10 @@ case class Cache(ways: Int) extends Component {
           fsmIndex := index
           fsmOffset := offset
           fsmIsWrite := io.corePort.isWrite
+
+          when(io.corePort.isWrite) {
+            fsmWriteValue := io.corePort.writeValue
+          }
 
           when(hasFreeLine) {
             whichWayToEvict := freeLineWay
@@ -104,8 +116,8 @@ case class Cache(ways: Int) extends Component {
 
 
     findWayToEvict.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).whenIsActive {
-      val line1 = cacheMemories(evictCounter)(fsmIndex).as(CacheLine()).counter
-      val line2 = cacheMemories(evictCounter + 1)(fsmIndex).as(CacheLine()).counter
+      val line1 = getCacheLine(evictCounter, fsmIndex).counter
+      val line2 = getCacheLine(evictCounter + 1, fsmIndex).counter
       when(line1 < line2) {
         when(line1 < whichWayToEvictCnt) {
           whichWayToEvictCnt := line1
@@ -118,7 +130,7 @@ case class Cache(ways: Int) extends Component {
         }
       }
 
-      when(evictCounter + 1 === ways.asUInt) {
+      when(evictCounter + 1 === U(ways)) {
         goto(doEvict)
       } otherwise {
         evictCounter := evictCounter + 2
@@ -127,7 +139,7 @@ case class Cache(ways: Int) extends Component {
 
 
     doEvict.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).whenIsActive {
-      val toEvictLine = cacheMemories(whichWayToEvict)(fsmIndex).as(CacheLine())
+      val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
       when(toEvictLine.dirty) {
         val aw = io.memPort.aw
         aw.valid := True
@@ -136,7 +148,7 @@ case class Cache(ways: Int) extends Component {
         /* 传输64个字节 */
         aw.payload.len := 64 - 1
         /* 一次传4个字节 */
-        aw.payload.size := Axi4.size.BYTE_4
+        aw.payload.size := Axi4.size.BYTE_4.asUInt
         /* 增量burst */
         aw.payload.burst := Axi4.burst.INCR
 
@@ -151,7 +163,7 @@ case class Cache(ways: Int) extends Component {
     writeDirty.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).onEntry(writeDirtyCnt := 0).whenIsActive {
       io.memPort.aw.setIdle()
       val w = io.memPort.w
-      val toEvictLine = cacheMemories(whichWayToEvict)(fsmIndex).as(CacheLine())
+      val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
       when(writeDirtyCnt <= 16 - 1) {
         w.data := toEvictLine.data(writeDirtyCnt)
         w.strb := B"4'b1111"
@@ -188,7 +200,7 @@ case class Cache(ways: Int) extends Component {
       /* 传输64个字节 */
       ar.payload.len := 64 - 1
       /* 一次传4个字节 */
-      ar.payload.size := Axi4.size.BYTE_4
+      ar.payload.size := Axi4.size.BYTE_4.asUInt
       /* 增量burst */
       ar.payload.burst := Axi4.burst.INCR
 
@@ -203,13 +215,17 @@ case class Cache(ways: Int) extends Component {
         when(r.valid) {
           /* TODO: 处理异常 */
           when(r.resp === Axi4.resp.OKAY) {
-            val line = cacheMemories(whichWayToEvict)(fsmIndex).as(CacheLine())
+            val line = getCacheLine(whichWayToEvict, fsmIndex)
             line.valid := True
             line.dirty := False
             line.tag := fsmTag
             line.counter := 0
             line.data(readCnt) := r.data
-            cacheMemories(whichWayToEvict).write(fsmIndex, line.asBits)
+
+            val group = cacheMemories(index)
+            group.subdivideIn(ways slices)(whichWay) := line.asBits
+            cacheMemories.write(index, group)
+
             readCnt := readCnt + 1
           }
           when(r.last && readCnt === 16 - 1) {
@@ -221,17 +237,19 @@ case class Cache(ways: Int) extends Component {
     }
 
     finish.onEntry(fsmNeedStall := False).onEntry(io.corePort.needStall := False).whenIsActive {
-      val line = cacheMemories(whichWayToEvict)(fsmIndex).as(CacheLine())
+      val line = getCacheLine(whichWayToEvict, fsmIndex)
+      val group = cacheMemories(fsmIndex)
+      group.subdivideIn(ways slices)(whichWay) := line.asBits
+
       when(fsmIsWrite) {
-        line.data(offsetByWord) := io.corePort.writeValue
+        line.data(fsmOffsetByWord) := fsmWriteValue
         line.dirty := True
-        cacheMemories(whichWayToEvict).write(index, line.asBits)
       } otherwise {
-        io.corePort.readValue := line.data
-        line.counter := line.counter + 1
-        cacheMemories(whichWayToEvict).write(index, line.asBits)
+        io.corePort.readValue := line.data(fsmOffsetByWord)
       }
 
+      line.counter := line.counter + 1
+      cacheMemories.write(fsmIndex, group)
       goto(cacheNormalWorking)
     }
   }
