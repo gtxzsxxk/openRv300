@@ -34,8 +34,9 @@ object DDRSimTest extends App {
 
     /* 写测试 */
     val writeData: Array[Long] = Array.fill(16)(scala.util.Random.nextInt() & 0xFFFFFFFFL)
+    val addr = scala.util.Random.nextInt() & 0xFFCL
     aw.payload.id #= 0x2
-    aw.payload.addr #= 0x0040
+    aw.payload.addr #= addr
     aw.payload.len #= 64 - 1
     aw.payload.size #= 2
     aw.payload.burst #= 1
@@ -63,7 +64,7 @@ object DDRSimTest extends App {
     b.ready #= false
 
     for (idx <- 0 until 16) {
-      assert(dut.simMemory.getBigInt(0x0040 + idx * 4) == writeData(idx))
+      assert(dut.simMemory.getBigInt(addr + idx * 4) == writeData(idx))
     }
   }
 }
