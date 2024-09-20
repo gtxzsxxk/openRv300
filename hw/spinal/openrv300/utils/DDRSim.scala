@@ -32,8 +32,6 @@ case class DDRSim() extends Component {
     val len = Reg(UInt(8 bits))
     val size = Reg(UInt(3 bits))
     val burst = Reg(Bits(2 bits))
-    val awReady = Reg(Bool())
-    val arReady = Reg(Bool())
 
     val counter = Reg(UInt(8 bits))
 
@@ -42,30 +40,28 @@ case class DDRSim() extends Component {
     val writeResponse = new State
     val doRead = new State
 
-    init.onEntry(awReady := False).onEntry(arReady := False).whenIsActive {
+    init.whenIsActive {
       when(aw.valid) {
-        val compatible = aw.payload.burst === Axi4.burst.INCR && aw.payload.size === Axi4.size.BYTE_4
+        val compatible = aw.payload.burst === Axi4.burst.INCR && aw.payload.size === Axi4.size.BYTE_4.asUInt
 
         axiId := aw.payload.id
         addr := aw.payload.addr
         len := aw.payload.len
         size := aw.payload.size
         burst := aw.payload.burst
-        awReady := compatible
-        aw.ready := awReady
+        aw.ready := compatible
 
         when(compatible) {
           goto(doWrite)
         }
       } elsewhen (ar.valid) {
-        val compatible = ar.payload.burst === Axi4.burst.INCR && ar.payload.size === Axi4.size.BYTE_4
+        val compatible = ar.payload.burst === Axi4.burst.INCR && ar.payload.size === Axi4.size.BYTE_4.asUInt
         axiId := ar.payload.id
         addr := ar.payload.addr
         len := ar.payload.len
         size := ar.payload.size
         burst := ar.payload.burst
-        arReady := compatible
-        ar.ready := arReady
+        ar.ready := compatible
 
         when(compatible) {
           goto(doRead)
@@ -74,10 +70,8 @@ case class DDRSim() extends Component {
     }
 
     doWrite.onEntry(counter := 0).whenIsActive {
-      aw.setIdle()
+      w.ready := True
       when(w.valid) {
-        w.ready := True
-        simMemory.write(addrByWord + counter, w.payload.data)
         simMemory.write((addrByWord + counter).resized, w.payload.data)
         counter := counter + 4
         when(w.last) {
@@ -87,19 +81,17 @@ case class DDRSim() extends Component {
     }
 
     writeResponse.whenIsActive {
-      w.setIdle()
       b.payload.resp := Axi4.resp.OKAY
       b.valid := True
       b.payload.id := axiId
       when(b.ready) {
-        b.setIdle()
         goto(init)
       }
     }
 
     doRead.onEntry(counter := 0).whenIsActive {
-      ar.setIdle()
       when(r.ready) {
+        /* TODO: 不能使用len */
         when(counter <= len) {
           r.payload.resp := Axi4.resp.OKAY
           r.payload.data := simMemory((addrByWord + counter).resized)
