@@ -66,5 +66,29 @@ object DDRSimTest extends App {
     for (idx <- 0 until 16) {
       assert(dut.simMemory.getBigInt(addr + idx * 4) == writeData(idx))
     }
+
+    /* 读测试 */
+    ar.payload.id #= 0x3
+    ar.payload.addr #= addr
+    ar.payload.len #= 64 - 1
+    ar.payload.size #= 2
+    ar.payload.burst #= 1
+    ar.valid #= true
+    while (!ar.ready.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    ar.valid #= false
+    r.ready #= true
+    while (!r.valid.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    for (idx <- 0 until 16) {
+      assert(r.payload.resp.toInt == 0)
+      assert(r.payload.last.toBoolean == (idx == 15))
+      assert(r.payload.data.toLong == writeData(idx))
+      dut.clockDomain.waitRisingEdge()
+    }
+    r.ready #= false
+    dut.clockDomain.waitRisingEdge()
   }
 }
