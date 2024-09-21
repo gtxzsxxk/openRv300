@@ -163,7 +163,7 @@ case class Cache(ways: Int) extends Component {
 
     doEvict.onEntry(fsmNeedStall := True).whenIsActive {
       val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
-      when(toEvictLine.dirty) {
+      when(toEvictLine.valid && toEvictLine.dirty) {
         val aw = io.memPort.aw
         aw.valid := True
         aw.payload.id := 1
