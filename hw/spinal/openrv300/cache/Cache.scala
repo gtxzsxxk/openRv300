@@ -64,6 +64,8 @@ case class Cache(ways: Int) extends Component {
     val fsmOffsetByWord = fsmOffset(5 downto 2)
     val fsmNeedStall = Reg(Bool())
 
+    val fsmTempline = getCacheLine(whichWayToEvict, fsmIndex).noCombLoopCheck
+
     val cacheNormalWorking = new State with EntryPoint
     val findWayToEvict = new State
     val doEvict = new State
@@ -228,12 +230,10 @@ case class Cache(ways: Int) extends Component {
         when(r.valid) {
           /* TODO: 处理异常 */
           when(r.resp === Axi4.resp.OKAY) {
-            val line = getCacheLine(whichWayToEvict, fsmIndex)
-            line.valid := True
-            line.dirty := False
-            line.tag := fsmTag
-            line.counter := 0
-            line.data(readCnt) := r.data
+            fsmTempline.valid := True
+            fsmTempline.dirty := False
+            fsmTempline.tag := fsmTag
+            fsmTempline.counter := 0
             fsmTempline.data(readCnt.resized) := r.data
 
             val group = Bits(cacheGroupBits bits)
@@ -253,10 +253,6 @@ case class Cache(ways: Int) extends Component {
       io.corePort.needStall := fsmNeedStall
     }
 
-    finish.onEntry(fsmNeedStall := False).onEntry(io.corePort.needStall := False).whenIsActive {
-      val line = getCacheLine(whichWayToEvict, fsmIndex)
-      val group = cacheMemories(fsmIndex)
-      group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
     finish.onEntry(fsmNeedStall := False).whenIsActive {
       io.memPort.r.setBlocked()
 
@@ -265,13 +261,13 @@ case class Cache(ways: Int) extends Component {
       group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempline.asBits
 
       when(fsmIsWrite) {
-        line.data(fsmOffsetByWord) := fsmWriteValue
-        line.dirty := True
+        fsmTempline.data(fsmOffsetByWord) := fsmWriteValue
+        fsmTempline.dirty := True
       } otherwise {
-        io.corePort.readValue := line.data(fsmOffsetByWord)
+        io.corePort.readValue := fsmTempline.data(fsmOffsetByWord)
       }
 
-      line.counter := line.counter + 1
+      fsmTempline.counter := fsmTempline.counter + 1
       cacheMemories.write(fsmIndex, group)
       goto(cacheNormalWorking)
 
