@@ -16,11 +16,14 @@ case class InstDataCrossbar() extends Component {
   /* False 代表允许 iBus 通过 */
   val arbiter = Reg(Bool()) init (False)
 
-  val iBusOn = (io.iBus.ar.valid || io.iBus.aw.valid)
-  val dBusOn = (io.dBus.ar.valid || io.dBus.aw.valid)
-  val needArbiter = iBusOn && dBusOn
+  val iBusStart = (io.iBus.ar.valid || io.iBus.aw.valid)
+  val dBusStart = (io.dBus.ar.valid || io.dBus.aw.valid)
+  val iBusOn = (iBusStart || io.iBus.r.ready || io.iBus.b.ready || io.iBus.w.valid)
+  val dBusOn = (dBusStart || io.dBus.r.ready || io.dBus.b.ready || io.dBus.w.valid)
 
-  when(needArbiter) {
+  val needArbiterChange = (iBusStart && !dBusOn && arbiter) || (!iBusOn && dBusStart && !arbiter)
+
+  when(needArbiterChange) {
     arbiter := ~arbiter
   } otherwise {
     arbiter := dBusOn
