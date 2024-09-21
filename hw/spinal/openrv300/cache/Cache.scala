@@ -25,11 +25,17 @@ case class Cache(ways: Int) extends Component {
   val offset = io.corePort.address(5 downto 0)
   val offsetByWord = io.corePort.address(5 downto 2)
 
-  val cacheLine = CacheLine()
+  val cacheLine = CacheLine().noCombLoopCheck
+  cacheLine.valid := False
+  cacheLine.dirty := False
+  cacheLine.tag := 0
+  cacheLine.counter := 0
+  for (idx <- 0 until 16) {
+    cacheLine.data(idx) := 0
+  }
 
   val cacheHitVec = Vec.fill(ways)(Bool())
   val cacheLineValids = Vec.fill(ways)(Bool())
-  cacheLine.valid := False
 
   val hit = cacheHitVec.orR
   val whichWay = UInt(log2Up(ways) bits)
@@ -46,6 +52,14 @@ case class Cache(ways: Int) extends Component {
       cacheLineValids(way) := getCacheLine(way, index).valid
     }
   }
+
+  io.corePort.needStall := False
+  io.corePort.readValue := 0
+  io.memPort.aw.setIdle()
+  io.memPort.ar.setIdle()
+  io.memPort.w.setIdle()
+  io.memPort.r.setBlocked()
+  io.memPort.b.setBlocked()
 
   val fsm = new StateMachine {
     val evictCounter = Reg(UInt(4 bits))
