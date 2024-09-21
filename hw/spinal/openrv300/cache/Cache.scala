@@ -121,12 +121,7 @@ case class Cache(ways: Int) extends Component {
             whichWayToEvict := freeLineWay
             goto(doEvict)
           } otherwise {
-            if (ways <= 2) {
-              whichWayToEvict := 0
-              goto(doEvict)
-            } else {
-              goto(findWayToEvict)
-            }
+            goto(findWayToEvict)
           }
 
           /* 立刻stall */
