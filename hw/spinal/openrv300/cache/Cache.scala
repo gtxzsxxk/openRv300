@@ -18,7 +18,7 @@ case class Cache(ways: Int) extends Component {
 
   val cacheMemories = Mem(Bits(cacheGroupBits bits), wordCount = 64)
 
-  def getCacheLine(way: UInt, index: UInt): CacheLine = cacheMemories(index).subdivideIn(2 slices)(way).as(CacheLine())
+  def getCacheLine(way: UInt, index: UInt): CacheLine = cacheMemories(index.resized).subdivideIn(ways slices)(way.resized).as(CacheLine())
 
   val tag = io.corePort.address(31 downto 12)
   val index = io.corePort.address(11 downto 6)
@@ -44,7 +44,7 @@ case class Cache(ways: Int) extends Component {
   }
 
   val fsm = new StateMachine {
-    val evictCounter = Reg(UInt(log2Up(ways) bits))
+    val evictCounter = Reg(UInt(4 bits))
     val whichWayToEvict = Reg(UInt(log2Up(ways) bits))
     val whichWayToEvictCnt = Reg(UInt(64 bits))
     val writeDirtyFlag = Reg(Bool())
@@ -121,12 +121,12 @@ case class Cache(ways: Int) extends Component {
       when(line1 < line2) {
         when(line1 < whichWayToEvictCnt) {
           whichWayToEvictCnt := line1
-          whichWayToEvict := evictCounter
+          whichWayToEvict := evictCounter.resized
         }
       } otherwise {
         when(line2 < whichWayToEvictCnt) {
           whichWayToEvictCnt := line2
-          whichWayToEvict := evictCounter + 1
+          whichWayToEvict := (evictCounter + 1).resized
         }
       }
 
@@ -165,7 +165,7 @@ case class Cache(ways: Int) extends Component {
       val w = io.memPort.w
       val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
       when(writeDirtyCnt <= 16 - 1) {
-        w.data := toEvictLine.data(writeDirtyCnt)
+        w.data := toEvictLine.data(writeDirtyCnt.resized)
         w.strb := B"4'b1111"
         w.last := writeDirtyCnt === 16 - 1
         w.valid := True
@@ -221,6 +221,7 @@ case class Cache(ways: Int) extends Component {
             line.tag := fsmTag
             line.counter := 0
             line.data(readCnt) := r.data
+            fsmTempline.data(readCnt.resized) := r.data
 
             val group = cacheMemories(index)
             group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
