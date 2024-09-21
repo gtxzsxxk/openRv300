@@ -23,9 +23,7 @@ object CacheTest extends App {
 
   Config.sim.compile {
     val cacheTop = CacheTestTop()
-    for (idx <- 0 until 2) {
-      cacheTop.cache.cacheMemories(idx).simPublic()
-    }
+    cacheTop.ddr.simMemory.simPublic()
     cacheTop
   }.doSim { dut =>
     dut.clockDomain.forkStimulus(10)
