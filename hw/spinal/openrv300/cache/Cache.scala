@@ -223,7 +223,7 @@ case class Cache(ways: Int) extends Component {
             line.data(readCnt) := r.data
 
             val group = cacheMemories(index)
-            group.subdivideIn(ways slices)(whichWay) := line.asBits
+            group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
             cacheMemories.write(index, group)
 
             readCnt := readCnt + 1
@@ -239,7 +239,7 @@ case class Cache(ways: Int) extends Component {
     finish.onEntry(fsmNeedStall := False).onEntry(io.corePort.needStall := False).whenIsActive {
       val line = getCacheLine(whichWayToEvict, fsmIndex)
       val group = cacheMemories(fsmIndex)
-      group.subdivideIn(ways slices)(whichWay) := line.asBits
+      group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
 
       when(fsmIsWrite) {
         line.data(fsmOffsetByWord) := fsmWriteValue
