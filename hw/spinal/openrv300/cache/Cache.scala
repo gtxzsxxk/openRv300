@@ -256,8 +256,7 @@ case class Cache(ways: Int) extends Component {
 
             readCnt := readCnt + 1
           }
-          when(r.last && readCnt === 16 - 1) {
-            r.setIdle()
+          when(readCnt === 16 - 1) {
             goto(finish)
           }
         }
