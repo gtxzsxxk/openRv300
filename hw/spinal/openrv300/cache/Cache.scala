@@ -115,7 +115,7 @@ case class Cache(ways: Int) extends Component {
     }
 
 
-    findWayToEvict.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).whenIsActive {
+    findWayToEvict.onEntry(fsmNeedStall := True).whenIsActive {
       val line1 = getCacheLine(evictCounter, fsmIndex).counter
       val line2 = getCacheLine(evictCounter + 1, fsmIndex).counter
       when(line1 < line2) {
@@ -135,10 +135,12 @@ case class Cache(ways: Int) extends Component {
       } otherwise {
         evictCounter := evictCounter + 2
       }
+
+      io.corePort.needStall := fsmNeedStall
     }
 
 
-    doEvict.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).whenIsActive {
+    doEvict.onEntry(fsmNeedStall := True).whenIsActive {
       val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
       when(toEvictLine.dirty) {
         val aw = io.memPort.aw
@@ -158,9 +160,11 @@ case class Cache(ways: Int) extends Component {
       } otherwise {
         goto(readCacheLine)
       }
+
+      io.corePort.needStall := fsmNeedStall
     }
 
-    writeDirty.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).onEntry(writeDirtyCnt := 0).whenIsActive {
+    writeDirty.onEntry(fsmNeedStall := True).onEntry(writeDirtyCnt := 0).whenIsActive {
       io.memPort.aw.setIdle()
       val w = io.memPort.w
       val toEvictLine = getCacheLine(whichWayToEvict, fsmIndex)
@@ -189,9 +193,11 @@ case class Cache(ways: Int) extends Component {
           goto(readCacheLine)
         }
       }
+
+      io.corePort.needStall := fsmNeedStall
     }
 
-    readCacheLine.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).onEntry(readStartFlag := False).onEntry(readCnt := 0).whenIsActive {
+    readCacheLine.onEntry(fsmNeedStall := True).onEntry(readStartFlag := False).onEntry(readCnt := 0).whenIsActive {
       val ar = io.memPort.ar
       val r = io.memPort.r
       ar.valid := True
@@ -235,12 +241,15 @@ case class Cache(ways: Int) extends Component {
           }
         }
       }
+
+      io.corePort.needStall := fsmNeedStall
     }
 
     finish.onEntry(fsmNeedStall := False).onEntry(io.corePort.needStall := False).whenIsActive {
       val line = getCacheLine(whichWayToEvict, fsmIndex)
       val group = cacheMemories(fsmIndex)
       group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
+    finish.onEntry(fsmNeedStall := False).whenIsActive {
 
       when(fsmIsWrite) {
         line.data(fsmOffsetByWord) := fsmWriteValue
@@ -252,6 +261,8 @@ case class Cache(ways: Int) extends Component {
       line.counter := line.counter + 1
       cacheMemories.write(fsmIndex, group)
       goto(cacheNormalWorking)
+
+      io.corePort.needStall := False
     }
   }
 }
