@@ -42,6 +42,14 @@ case class InstDataCrossbar() extends Component {
   io.iBus.b.valid := io.coreBus.b.valid && !arbiter
   io.dBus.b.valid := io.coreBus.b.valid && arbiter
 
+  def reduceLatch(which: Axi4): Unit = {
+    which.b.payload.assignDontCare()
+    which.r.payload.assignDontCare()
+  }
+
+  reduceLatch(io.iBus)
+  reduceLatch(io.dBus)
+
   when(arbiter) {
     io.coreBus <> io.dBus
   } otherwise {
