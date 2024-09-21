@@ -31,7 +31,9 @@ case class Cache(ways: Int) extends Component {
   val cacheLineValids = Vec.fill(ways)(Bool())
   cacheLine.valid := False
 
-  val (hit, whichWay): (Bool, UInt) = cacheHitVec.sFindFirst(_ === True)
+  val hit = cacheHitVec.orR
+  val whichWay = UInt(log2Up(ways) bits)
+  whichWay := 0
   val (hasFreeLine, freeLineWay): (Bool, UInt) = cacheLineValids.sFindFirst(_ === False)
 
   for (way <- 0 until ways) {
@@ -41,6 +43,7 @@ case class Cache(ways: Int) extends Component {
       cacheHitVec(way) := True
     }
     cacheLineValids(way) := getCacheLine(way, index).valid
+      whichWay := way
   }
 
   val fsm = new StateMachine {
@@ -252,6 +255,8 @@ case class Cache(ways: Int) extends Component {
       val group = cacheMemories(fsmIndex)
       group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
     finish.onEntry(fsmNeedStall := False).whenIsActive {
+      io.memPort.r.setBlocked()
+
       val group = Bits(cacheGroupBits bits)
       group := cacheMemories(fsmIndex)
       group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempline.asBits
