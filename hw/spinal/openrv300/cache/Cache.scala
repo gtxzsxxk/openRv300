@@ -212,7 +212,7 @@ case class Cache(ways: Int) extends Component {
       when(b.valid) {
         /* TODO: 处理异常 */
         when(b.resp === Axi4.resp.OKAY) {
-          b.setIdle()
+          b.setBlocked()
           goto(readCacheLine)
         }
       }
@@ -234,12 +234,11 @@ case class Cache(ways: Int) extends Component {
       ar.payload.burst := Axi4.burst.INCR
 
       when(ar.ready) {
-        ar.setIdle()
         readStartFlag := True
       }
 
       when(readStartFlag) {
-        r.id := 0
+        ar.setIdle()
         r.ready := True
         when(r.valid) {
           /* TODO: 处理异常 */
