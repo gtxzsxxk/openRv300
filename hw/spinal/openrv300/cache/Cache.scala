@@ -74,7 +74,8 @@ case class Cache(ways: Int) extends Component {
         whichWayToEvictCnt := U"64'hFFFF_FFFF_FFFF_FFFF"
         writeDirtyFlag := False
         when(hit) {
-          val group = cacheMemories(index)
+          val group = Bits(cacheGroupBits bits)
+          group := cacheMemories(index)
           group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
           when(io.corePort.isWrite) {
             cacheLine.data(offsetByWord) := io.corePort.writeValue
@@ -229,8 +230,9 @@ case class Cache(ways: Int) extends Component {
             line.data(readCnt) := r.data
             fsmTempline.data(readCnt.resized) := r.data
 
-            val group = cacheMemories(index)
-            group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
+            val group = Bits(cacheGroupBits bits)
+            group := cacheMemories(index)
+            group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempline.asBits
             cacheMemories.write(index, group)
 
             readCnt := readCnt + 1
@@ -250,6 +252,9 @@ case class Cache(ways: Int) extends Component {
       val group = cacheMemories(fsmIndex)
       group.subdivideIn(ways slices)(whichWayToEvict) := line.asBits
     finish.onEntry(fsmNeedStall := False).whenIsActive {
+      val group = Bits(cacheGroupBits bits)
+      group := cacheMemories(fsmIndex)
+      group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempline.asBits
 
       when(fsmIsWrite) {
         line.data(fsmOffsetByWord) := fsmWriteValue
