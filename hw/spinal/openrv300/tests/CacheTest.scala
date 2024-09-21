@@ -51,5 +51,11 @@ object CacheTest extends App {
     dut.clockDomain.waitRisingEdge()
     dut.clockDomain.waitRisingEdge()
     dut.clockDomain.waitRisingEdge()
+
+    /* 写0x0000_0000的数据 */
+    /* 写0x0000_1000的数据 */
+    /* 读0x0000_2000的数据，引起页面替换 */
+    /* 写0x0000_3000的数据，测试脏行写回 */
+    /* 写0xffff_ffff，引起异常 */
   }
 }
