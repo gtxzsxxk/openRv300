@@ -38,12 +38,13 @@ case class Cache(ways: Int) extends Component {
 
   for (way <- 0 until ways) {
     cacheHitVec(way) := False
+    cacheLineValids(way) := False
     when(getCacheLine(way, index).tag === tag && getCacheLine(way, index).valid) {
       cacheLine := getCacheLine(way, index)
       cacheHitVec(way) := True
-    }
-    cacheLineValids(way) := getCacheLine(way, index).valid
       whichWay := way
+      cacheLineValids(way) := getCacheLine(way, index).valid
+    }
   }
 
   val fsm = new StateMachine {
@@ -185,9 +186,11 @@ case class Cache(ways: Int) extends Component {
         w.setIdle()
         goto(writeWaitB)
       }
+
+      io.corePort.needStall := fsmNeedStall
     }
 
-    writeWaitB.onEntry(fsmNeedStall := True).onEntry(io.corePort.needStall := fsmNeedStall).whenIsActive {
+    writeWaitB.onEntry(fsmNeedStall := True).whenIsActive {
       val b = io.memPort.b
       b.ready := True
       when(b.valid) {
