@@ -41,6 +41,8 @@ case class DDRSim() extends Component {
     val doRead = new State
 
     init.whenIsActive {
+      r.setIdle()
+
       when(aw.valid) {
         val compatible = aw.payload.burst === Axi4.burst.INCR && aw.payload.size === Axi4.size.BYTE_4.asUInt
 
@@ -91,14 +93,14 @@ case class DDRSim() extends Component {
 
     doRead.onEntry(counter := 0).whenIsActive {
       when(r.ready) {
-        when(counter <= len) {
-          r.payload.resp := Axi4.resp.OKAY
-          r.payload.data := simMemory((addrByWord + counter).resized)
-          r.valid := True
-          r.last := counter === (len + 1 - 4)
-          counter := counter + 4
-        } otherwise {
-          r.setIdle()
+        val last = counter === (len + 1 - 4)
+        r.payload.resp := Axi4.resp.OKAY
+        r.payload.data := simMemory((addrByWord + counter).resized)
+        r.valid := True
+        r.last := counter === (len + 1 - 4)
+        counter := counter + 4
+
+        when(last) {
           goto(init)
         }
       }
