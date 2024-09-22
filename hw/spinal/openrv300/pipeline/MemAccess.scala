@@ -1,5 +1,6 @@
 package openrv300.pipeline
 
+import openrv300.cache.CacheCorePort
 import openrv300.isa.MicroOp
 import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload._
@@ -9,8 +10,10 @@ import spinal.lib._
 case class MemAccess() extends Component {
   val io = new Bundle {
     val request = slave(Flow(ExecMemPayload()))
+    /* answer.valid 决定了是否应该停止流水线 */
     val answer = master(Flow(ExecMemPayload()))
     val bypassWritePort = master(BypassWritePort())
+    val dCachePort = master(CacheCorePort())
   }
 
   val dataMem = Mem(Bits(32 bits), wordCount = 256)
@@ -20,14 +23,11 @@ case class MemAccess() extends Component {
 
   ansPayload <> reqData
 
-  val addrByWord = UInt(8 bits)
-  addrByWord := reqData.memoryAddress(9 downto 2)
-  val addrOffset = UInt(2 bits)
-  addrOffset := reqData.memoryAddress(1 downto 0)
-  val dataToWrite = Bits(32 bits)
-  dataToWrite := B"32'd0"
-  val writeMask = Bits(4 bits)
-  writeMask := B"4'd0"
+  io.dCachePort.address := U"32'd0"
+  io.dCachePort.isWrite := False
+  io.dCachePort.writeValue := B"32'd0"
+  io.dCachePort.valid := False
+  io.dCachePort.writeMask := B"4'd0"
 
   val bypassWPort = BypassWritePort().noCombLoopCheck
   val bypassValueReady = Reg(Bool()) init (False)
@@ -42,46 +42,51 @@ case class MemAccess() extends Component {
     bypassValueReady := Bool(solvedThisStage)
   }
 
-  io.answer.setIdle()
+  def doLoadStore(requestData: ExecMemPayload): Unit = {
+    val addrOffset = requestData.memoryAddress(1 downto 0)
+    val dataToWrite = Bits(32 bits)
+    dataToWrite := B"32'd0"
+    val writeMask = Bits(4 bits)
+    writeMask := B"4'd0"
 
-  when(ansPayload.writeRegDest) {
-    insertBypass(true)
-  }
+    /* 设置 cache 端口请求 */
+    io.dCachePort.address := requestData.memoryAddress
+    io.dCachePort.writeValue := dataToWrite
+    io.dCachePort.valid := True
+    io.dCachePort.writeMask := writeMask
 
-  /* TODO: 处理地址越界，产生异常 */
-  when(io.request.valid) {
-    io.answer.push(ansPayload)
-
-    switch(reqData.microOp) {
+    switch(requestData.microOp) {
       is(MicroOp.LOAD) {
-        switch(reqData.function0) {
+        io.dCachePort.isWrite := False
+        switch(requestData.function0) {
           is(B"000") {
             /* LB */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asSInt.resize(32).asBits
+            ansPayload.regDestValue := io.dCachePort.readValue.subdivideIn(8 bits)(addrOffset).asSInt.resize(32).asBits
           }
           is(B"001") {
             /* LH */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asSInt.resize(32).asBits
+            ansPayload.regDestValue := io.dCachePort.readValue.subdivideIn(16 bits)(addrOffset(1).asUInt).asSInt.resize(32).asBits
           }
           is(B"010") {
             /* LW */
-            ansPayload.regDestValue := dataMem(addrByWord).asBits
+            ansPayload.regDestValue := io.dCachePort.readValue.asBits
           }
           is(B"100") {
             /* LBU */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(8 bits)(addrOffset).asUInt.resize(32).asBits
+            ansPayload.regDestValue := io.dCachePort.readValue.subdivideIn(8 bits)(addrOffset).asUInt.resize(32).asBits
           }
           is(B"101") {
             /* LHU */
-            ansPayload.regDestValue := dataMem(addrByWord).subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
+            ansPayload.regDestValue := io.dCachePort.readValue.subdivideIn(16 bits)(addrOffset(1).asUInt).asUInt.resize(32).asBits
           }
         }
       }
       is(MicroOp.STORE) {
-        switch(reqData.function0) {
+        io.dCachePort.isWrite := True
+        switch(requestData.function0) {
           is(B"000") {
             /* SB */
-            dataToWrite := reqData.registerSources(1).value |<< addrOffset.muxList[UInt](
+            dataToWrite := requestData.registerSources(1).value |<< addrOffset.muxList[UInt](
               for (idx <- 0 until 4)
                 yield (idx, U(idx * 8, 8 bits))
             )
@@ -91,11 +96,10 @@ case class MemAccess() extends Component {
               2 -> B"0100",
               3 -> B"1000"
             )
-            dataMem.write(addrByWord, dataToWrite, mask = writeMask)
           }
           is(B"001") {
             /* SH */
-            dataToWrite := reqData.registerSources(1).value |<< addrOffset(1).asUInt.mux[UInt](
+            dataToWrite := requestData.registerSources(1).value |<< addrOffset(1).asUInt.mux[UInt](
               0 -> U"6'd0",
               1 -> U"6'd16"
             )
@@ -103,13 +107,18 @@ case class MemAccess() extends Component {
               0 -> B"0011",
               1 -> B"1100",
             )
-            dataMem.write(addrByWord, dataToWrite, mask = writeMask)
           }
           is(B"010") {
             /* SW */
             dataMem.write(addrByWord, reqData.registerSources(1).value)
           }
         }
+            dataToWrite := requestData.registerSources(1).value
+          }
+        }
+      }
+    }
+  }
       }
     }
   }
