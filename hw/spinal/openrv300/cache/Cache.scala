@@ -53,7 +53,7 @@ case class Cache(ways: Int) extends Component {
     }
   }
 
-  io.corePort.needStall := False
+  io.corePort.needStall := True
   io.corePort.readValue := 0
   io.memPort.aw.setIdle()
   io.memPort.ar.setIdle()
