@@ -19,6 +19,8 @@ object Config {
   def arch = "rv32i"
   def abi = "ilp32"
 
+  def startAddress = U"32'h8000_0000"
+
   def axiConfig = Axi4Config(
       addressWidth = 32,
       dataWidth = 32,
