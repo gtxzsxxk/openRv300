@@ -64,7 +64,7 @@ object DDRSimTest extends App {
     b.ready #= false
 
     for (idx <- 0 until 16) {
-      assert(dut.simMemory.getBigInt(addr + idx * 4) == writeData(idx))
+      assert(dut.simMemory.getBigInt((addr + idx * 4) / 4) == writeData(idx))
     }
 
     /* 读测试 */

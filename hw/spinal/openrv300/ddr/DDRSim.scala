@@ -35,6 +35,8 @@ case class DDRSim() extends Component {
 
     val counter = Reg(UInt(8 bits))
 
+    val readAddrInWord = (addrByWord + counter)(31 downto 2)
+
     val init = new State with EntryPoint
     val doWrite = new State
     val writeResponse = new State
@@ -74,7 +76,7 @@ case class DDRSim() extends Component {
     doWrite.onEntry(counter := 0).whenIsActive {
       w.ready := True
       when(w.valid) {
-        simMemory.write((addrByWord + counter).resized, w.payload.data)
+        simMemory.write(readAddrInWord.resized, w.payload.data)
         counter := counter + 4
         when(w.last) {
           goto(writeResponse)
@@ -95,7 +97,7 @@ case class DDRSim() extends Component {
       when(r.ready) {
         val last = counter === (len + 1 - 4)
         r.payload.resp := Axi4.resp.OKAY
-        r.payload.data := simMemory((addrByWord + counter).resized)
+        r.payload.data := simMemory(readAddrInWord.resized)
         r.valid := True
         r.last := counter === (len + 1 - 4)
         counter := counter + 4
