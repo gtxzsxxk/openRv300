@@ -33,8 +33,8 @@ object CacheTest extends App {
     dut.clockDomain.deassertReset()
 
     /* 通过接口设置数据 */
-    var ramData: Array[Long] = Array.fill(128)(scala.util.Random.nextInt() & 0xFFFFFFFFL)
-    for (idx <- 0 until 128) {
+    var ramData: Array[Long] = Array.fill(4096)(scala.util.Random.nextInt() & 0xFFFFFFFFL)
+    for (idx <- 0 until 4096) {
       dut.ddr.simMemory.setBigInt(idx, ramData(idx))
     }
 
@@ -48,14 +48,100 @@ object CacheTest extends App {
     while (port.needStall.toBoolean) {
       dut.clockDomain.waitRisingEdge()
     }
-    dut.clockDomain.waitRisingEdge()
-    dut.clockDomain.waitRisingEdge()
+    assert(port.readValue.toLong == ramData(0))
+    port.valid #= false
     dut.clockDomain.waitRisingEdge()
 
-    /* 写0x0000_0000的数据 */
-    /* 写0x0000_1000的数据 */
+    /* 写0x0000_0004的数据 */
+    port.address #= 0x0004L
+    port.isWrite #= true
+    port.writeValue #= ramData(55)
+    port.valid #= true
+    dut.clockDomain.waitRisingEdge()
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    /* 背靠背执行 */
+    //    port.valid #= false
+    //    dut.clockDomain.waitRisingEdge()
+
+    /* 读0x0000_0004的数据 */
+    port.address #= 0x0004L
+    port.isWrite #= false
+    port.writeValue #= 0
+    port.valid #= true
+    dut.clockDomain.waitRisingEdge()
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    assert(port.readValue.toLong == ramData(55))
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
+    /* 写0x0000_1004的数据 */
+    port.address #= 0x1004L
+    port.isWrite #= true
+    port.writeValue #= ramData(55)
+    port.valid #= true
+
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
+    /* 读0x0000_0004的数据 */
+    port.address #= 0x0004L
+    port.isWrite #= false
+    port.writeValue #= 0
+    port.valid #= true
+    dut.clockDomain.waitRisingEdge()
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    assert(port.readValue.toLong == ramData(55))
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
+    /* 读0x0000_0004的数据 */
+    port.address #= 0x0004L
+    port.isWrite #= false
+    port.writeValue #= 0
+    port.valid #= true
+    dut.clockDomain.waitRisingEdge()
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    assert(port.readValue.toLong == ramData(55))
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
     /* 读0x0000_2000的数据，引起页面替换 */
+    /* 此时0x0000_1004的数据被写回，检查 */
+    port.address #= 0x2000L
+    port.isWrite #= false
+    port.writeValue #= 0
+    port.valid #= true
+
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    assert(port.readValue.toLong == ramData(2048))
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
     /* 写0x0000_3000的数据，测试脏行写回 */
+    port.address #= 0x3000L
+    port.isWrite #= true
+    port.writeValue #= ramData(55)
+    port.valid #= true
+
+    while (port.needStall.toBoolean) {
+      dut.clockDomain.waitRisingEdge()
+    }
+    port.valid #= false
+    dut.clockDomain.waitRisingEdge()
+
     /* 写0xffff_ffff，引起异常 */
   }
 }
