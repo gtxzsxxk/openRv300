@@ -6,6 +6,7 @@ import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload._
 import spinal.core._
 import spinal.lib._
+import spinal.lib.fsm._
 
 case class MemAccess() extends Component {
   val io = new Bundle {
@@ -15,8 +16,6 @@ case class MemAccess() extends Component {
     val bypassWritePort = master(BypassWritePort())
     val dCachePort = master(CacheCorePort())
   }
-
-  val dataMem = Mem(Bits(32 bits), wordCount = 256)
 
   val reqData = io.request.payload
   val ansPayload = Reg(ExecMemPayload())
@@ -110,15 +109,46 @@ case class MemAccess() extends Component {
           }
           is(B"010") {
             /* SW */
-            dataMem.write(addrByWord, reqData.registerSources(1).value)
-          }
-        }
             dataToWrite := requestData.registerSources(1).value
           }
         }
       }
     }
   }
+
+  val fsm = new StateMachine {
+    val normalWorking = new State with EntryPoint
+    val cacheMiss = new State
+
+    val fsmReqData = Reg(ExecMemPayload())
+
+    normalWorking.whenIsActive {
+      when(ansPayload.writeRegDest) {
+        insertBypass(true)
+      }
+
+      /* TODO: 处理地址越界，产生异常 */
+      when(io.request.valid) {
+        io.answer.push(ansPayload)
+
+        when(reqData.microOp === MicroOp.LOAD || reqData.microOp === MicroOp.STORE) {
+          when(io.dCachePort.needStall) {
+            io.answer.setIdle()
+            fsmReqData := reqData
+            goto(cacheMiss)
+          } otherwise {
+            doLoadStore(reqData)
+          }
+        }
+      }
+    }
+
+    cacheMiss.whenIsActive {
+      io.answer.setIdle()
+      when(!io.dCachePort.needStall) {
+        io.answer.push(ansPayload)
+        doLoadStore(fsmReqData)
+        goto(normalWorking)
       }
     }
   }
