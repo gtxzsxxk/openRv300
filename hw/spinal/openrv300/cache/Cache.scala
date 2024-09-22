@@ -207,7 +207,6 @@ case class Cache(ways: Int) extends Component {
       when(b.valid) {
         /* TODO: 处理异常 */
         when(b.resp === Axi4.resp.OKAY) {
-          b.setBlocked()
           goto(readCacheLine)
         }
       }
@@ -216,6 +215,8 @@ case class Cache(ways: Int) extends Component {
     }
 
     readCacheLine.onEntry(fsmNeedStall := True).onEntry(readStartFlag := False).onEntry(readCnt := 0).whenIsActive {
+      io.memPort.b.setBlocked()
+
       val ar = io.memPort.ar
       val r = io.memPort.r
       ar.valid := True
