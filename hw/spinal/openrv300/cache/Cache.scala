@@ -146,7 +146,7 @@ case class Cache(ways: Int) extends Component {
         }
       }
 
-      when(evictCounter + 1 === U(ways)) {
+      when(evictCounter + 2 === U(ways)) {
         goto(doEvict)
       } otherwise {
         evictCounter := evictCounter + 2
