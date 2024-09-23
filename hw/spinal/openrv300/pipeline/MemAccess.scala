@@ -136,7 +136,6 @@ case class MemAccess() extends Component {
 
         when(reqData.microOp === MicroOp.LOAD || reqData.microOp === MicroOp.STORE) {
           when(io.dCachePort.needStall) {
-            io.answer.setIdle()
             fsmReqData := reqData
             goto(cacheMiss)
           }
@@ -148,9 +147,10 @@ case class MemAccess() extends Component {
     }
 
     cacheMiss.whenIsActive {
-      io.answer.setIdle()
+      io.answer.payload := fsmReqData
+      io.answer.valid := False
       when(!io.dCachePort.needStall) {
-        io.answer.push(ansPayload)
+        io.answer.valid := True
         goto(normalWorking)
       }
       doLoadStore(fsmReqData)
