@@ -49,7 +49,7 @@ case class DDRSim() extends Component {
         val compatible = aw.payload.burst === Axi4.burst.INCR && aw.payload.size === Axi4.size.BYTE_4.asUInt
 
         axiId := aw.payload.id
-        addr := aw.payload.addr
+        addr := aw.payload.addr(27 downto 0).resized
         len := aw.payload.len
         size := aw.payload.size
         burst := aw.payload.burst
@@ -61,7 +61,7 @@ case class DDRSim() extends Component {
       } elsewhen (ar.valid) {
         val compatible = ar.payload.burst === Axi4.burst.INCR && ar.payload.size === Axi4.size.BYTE_4.asUInt
         axiId := ar.payload.id
-        addr := ar.payload.addr
+        addr := ar.payload.addr(27 downto 0).resized
         len := ar.payload.len
         size := ar.payload.size
         burst := ar.payload.burst
