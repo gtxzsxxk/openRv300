@@ -6,6 +6,8 @@ import spinal.lib.{Flow, master}
 import spinal.lib.bus.amba4.axi._
 import pipeline._
 import pipeline.control.BypassUnit
+import cache._
+import ddr._
 import Config.axiConfig
 
 case class OpenRv300() extends Component {
@@ -33,6 +35,10 @@ case class OpenRv300() extends Component {
   val gprs = GPRs()
   val bypassUnit = BypassUnit()
 
+  val iCache = Cache(2)
+  val dCache = Cache(2)
+  val ddr = DDRSim()
+  val crossbar = InstDataCrossbar()
 
   fetch.io.answer <> decode.io.request
   decode.io.answer <> exec.io.request
@@ -50,6 +56,14 @@ case class OpenRv300() extends Component {
   decode.io.execRegisters <> exec.io.execRegisters
 
   fetch.io.needReplay := decode.io.waitForSrcReg
+  fetch.io.memAnswer <> mem.io.answer
+  fetch.io.dCacheMiss := mem.io.dCacheMiss
 
-  exec.io.isStalling := decode.io.waitForSrcReg || (!mem.io.answer.valid)
+  fetch.io.iCachePort <> iCache.io.corePort
+  mem.io.dCachePort <> dCache.io.corePort
+  crossbar.io.iBus <> iCache.io.memPort
+  crossbar.io.dBus <> dCache.io.memPort
+  ddr.io.memPort <> crossbar.io.coreBus
+
+  exec.io.isStalling := decode.io.waitForSrcReg || mem.io.dCacheMiss
 }
