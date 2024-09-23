@@ -53,8 +53,7 @@ object RunSimpleAsmTest extends App {
 
     Config.sim.compile {
       val core = OpenRv300()
-      core.fetch.instMem.simPublic()
-      core.mem.dataMem.simPublic()
+      core.ddr.simMemory.simPublic()
       core.fetch.programCounter.simPublic()
       core.gprs.registers.simPublic()
       core
@@ -67,7 +66,7 @@ object RunSimpleAsmTest extends App {
           ((bytes(2) & 0xFF) << 16) |
           ((bytes(3) & 0xFF) << 24)
 
-        dut.fetch.instMem.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
+        dut.ddr.simMemory.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
         cnt += 1
       }
 
@@ -76,8 +75,6 @@ object RunSimpleAsmTest extends App {
       dut.clockDomain.assertReset()
       dut.clockDomain.waitRisingEdge()
       dut.clockDomain.deassertReset()
-
-      println(dut.fetch.instMem.getBigInt(0))
 
       for (idx <- 0 until tst.cycle) {
         println(dut.fetch.programCounter.toLong)

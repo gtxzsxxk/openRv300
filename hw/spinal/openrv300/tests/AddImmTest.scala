@@ -7,8 +7,7 @@ import openrv300.{Config, OpenRv300}
 object AddImmTest extends App {
   Config.sim.compile {
     val core = OpenRv300()
-    core.fetch.instMem.simPublic()
-    core.mem.dataMem.simPublic()
+    core.ddr.simMemory.simPublic()
     core.fetch.programCounter.simPublic()
     core.gprs.registers.simPublic()
     core
@@ -24,14 +23,14 @@ object AddImmTest extends App {
     * addi x7 , x4,   666   /* x7  = 666  0x29A */
     * addi x8 , x4,   777   /* x8  = 777  0x309 */
     */
-    dut.fetch.instMem.setBigInt(0, BigInt("3e800093", 16))
-    dut.fetch.instMem.setBigInt(1, BigInt("7d008113", 16))
-    dut.fetch.instMem.setBigInt(2, BigInt("c1810193", 16))
-    dut.fetch.instMem.setBigInt(3, BigInt("83018213", 16))
-    dut.fetch.instMem.setBigInt(4, BigInt("3e820293", 16))
-    dut.fetch.instMem.setBigInt(5, BigInt("22b20313", 16))
-    dut.fetch.instMem.setBigInt(6, BigInt("29a20393", 16))
-    dut.fetch.instMem.setBigInt(7, BigInt("30920413", 16))
+    dut.ddr.simMemory.setBigInt(0, BigInt("3e800093", 16))
+    dut.ddr.simMemory.setBigInt(1, BigInt("7d008113", 16))
+    dut.ddr.simMemory.setBigInt(2, BigInt("c1810193", 16))
+    dut.ddr.simMemory.setBigInt(3, BigInt("83018213", 16))
+    dut.ddr.simMemory.setBigInt(4, BigInt("3e820293", 16))
+    dut.ddr.simMemory.setBigInt(5, BigInt("22b20313", 16))
+    dut.ddr.simMemory.setBigInt(6, BigInt("29a20393", 16))
+    dut.ddr.simMemory.setBigInt(7, BigInt("30920413", 16))
 
     dut.clockDomain.forkStimulus(10)
     dut.clockDomain.fallingEdge()
@@ -39,10 +38,9 @@ object AddImmTest extends App {
     dut.clockDomain.waitRisingEdge()
     dut.clockDomain.deassertReset()
 
-    println(dut.fetch.instMem.getBigInt(0))
+    assert(dut.ddr.simMemory.getBigInt(0) == 0x3e800093L)
 
-    for (idx <- 0 until 13) {
-      println(dut.fetch.programCounter.toLong)
+    for (idx <- 0 until 32) {
       dut.clockDomain.waitRisingEdge()
     }
 
