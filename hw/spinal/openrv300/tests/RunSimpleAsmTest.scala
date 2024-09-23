@@ -51,40 +51,40 @@ object RunSimpleAsmTest extends App {
 
     val binaryData = Files.readAllBytes(Paths.get(binFullPath))
 
-//    Config.sim.compile {
-//      val core = OpenRv300()
-//      core.fetch.instMem.simPublic()
-//      core.mem.dataMem.simPublic()
-//      core.fetch.programCounter.simPublic()
-//      core.gprs.registers.simPublic()
-//      core
-//    }.doSim { dut =>
-//      var cnt = 0
-//      binaryData.grouped(4).foreach { bytes =>
-//        // 小端拼接，将 bytes(0) 放到最低位，bytes(3) 放到最高位
-//        val word = (bytes(0) & 0xFF) |
-//          ((bytes(1) & 0xFF) << 8) |
-//          ((bytes(2) & 0xFF) << 16) |
-//          ((bytes(3) & 0xFF) << 24)
-//
-//        dut.fetch.instMem.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
-//        cnt += 1
-//      }
-//
-//      dut.clockDomain.forkStimulus(10)
-//      dut.clockDomain.fallingEdge()
-//      dut.clockDomain.assertReset()
-//      dut.clockDomain.waitRisingEdge()
-//      dut.clockDomain.deassertReset()
-//
-//      println(dut.fetch.instMem.getBigInt(0))
-//
-//      for (idx <- 0 until tst.cycle) {
-//        println(dut.fetch.programCounter.toLong)
-//        dut.clockDomain.waitRisingEdge()
-//      }
-//
-//      tst.verify(dut)
-//    }
+    Config.sim.compile {
+      val core = OpenRv300()
+      core.fetch.instMem.simPublic()
+      core.mem.dataMem.simPublic()
+      core.fetch.programCounter.simPublic()
+      core.gprs.registers.simPublic()
+      core
+    }.doSim { dut =>
+      var cnt = 0
+      binaryData.grouped(4).foreach { bytes =>
+        // 小端拼接，将 bytes(0) 放到最低位，bytes(3) 放到最高位
+        val word = (bytes(0) & 0xFF) |
+          ((bytes(1) & 0xFF) << 8) |
+          ((bytes(2) & 0xFF) << 16) |
+          ((bytes(3) & 0xFF) << 24)
+
+        dut.fetch.instMem.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
+        cnt += 1
+      }
+
+      dut.clockDomain.forkStimulus(10)
+      dut.clockDomain.fallingEdge()
+      dut.clockDomain.assertReset()
+      dut.clockDomain.waitRisingEdge()
+      dut.clockDomain.deassertReset()
+
+      println(dut.fetch.instMem.getBigInt(0))
+
+      for (idx <- 0 until tst.cycle) {
+        println(dut.fetch.programCounter.toLong)
+        dut.clockDomain.waitRisingEdge()
+      }
+
+      tst.verify(dut)
+    }
   }
 }
