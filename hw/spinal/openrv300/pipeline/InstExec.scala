@@ -54,7 +54,7 @@ case class InstExec() extends Component {
 
   io.answer.push(ansPayload)
 
-  when(io.isStalling) {
+  when(io.isStalling || !io.request.valid) {
     /* 译出NOP */
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
