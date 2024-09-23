@@ -4,11 +4,13 @@ import openrv300.Config.startAddress
 import openrv300.cache._
 import spinal.core._
 import spinal.lib._
-import payload.FetchPayload
+import payload.{ExecMemPayload, FetchPayload}
 
 case class InstFetch() extends Component {
   val io = new Bundle {
     val needReplay = in port Bool()
+    val memAnswer = slave(Flow(ExecMemPayload()))
+    val dCacheMiss = in port Bool()
     val answer = master(Flow(FetchPayload()))
     val iCachePort = master(CacheCorePort())
   }
@@ -22,9 +24,14 @@ case class InstFetch() extends Component {
   io.iCachePort.writeMask := B"4'd0"
 
   val payload = Reg(FetchPayload())
-  io.answer.push(payload)
+  io.answer.payload := payload
 
   val justReset = Reg(Bool()) init (True)
+
+  val dCacheMissed = RegNext(io.dCacheMiss)
+  val fetchValid = Reg(Bool())
+  fetchValid := True
+  io.answer.valid := fetchValid
 
   when(io.needReplay && (!justReset)) {
     payload.pcAddr := payload.pcAddr
@@ -33,13 +40,32 @@ case class InstFetch() extends Component {
     programCounter := payload.pcAddr + 4
   } otherwise {
     justReset := False
-    payload.pcAddr := programCounter
-    payload.instruction := io.iCachePort.readValue
 
-    when(io.iCachePort.needStall) {
-      io.answer.setIdle()
+    /* 正确的信号，代表dcache正在重填 */
+    when(!io.dCacheMiss) {
+      payload.instruction := io.iCachePort.readValue
+      when(!dCacheMissed) {
+        payload.pcAddr := programCounter
+
+        when(io.iCachePort.needStall) {
+          fetchValid := False
+        } otherwise {
+          programCounter := programCounter + 4
+        }
+
+        io.iCachePort.valid := True
+      } otherwise {
+        payload.pcAddr := io.memAnswer.payload.instPc + 4
+        io.iCachePort.address := io.memAnswer.payload.instPc + 4
+
+        when(io.iCachePort.needStall) {
+          fetchValid := False
+        } otherwise {
+          programCounter := io.memAnswer.payload.instPc + 4 + 4
+        }
+      }
     } otherwise {
-      programCounter := programCounter + 4
+      fetchValid := False
     }
   }
 }
