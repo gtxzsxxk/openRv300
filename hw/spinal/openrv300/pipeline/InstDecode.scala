@@ -15,7 +15,7 @@ case class InstDecode() extends Component {
     val bypassReadPorts = Vec.fill(2)(master(BypassReadPort()))
     /* 纯组合逻辑 */
     val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
-    val stall = out port Bool()
+    val waitForSrcReg = out port Bool()
   }
 
   /* 此时源寄存器不再随着ans payload寄存，所以需要使用寄存器 */
@@ -65,7 +65,7 @@ case class InstDecode() extends Component {
     reqData.instruction := B"32'h00000013"
     reqData.pcAddr := U"32'd0"
   } otherwise {
-    when(!io.stall) {
+    when(!io.waitForSrcReg) {
       reqData := io.request.payload
     } otherwise {
       reqData := lastRequest
@@ -88,11 +88,11 @@ case class InstDecode() extends Component {
     io.bypassReadPorts(idx).whichReg := registerSourceGPRs(idx).which
   }
 
-  io.stall := False
+  io.waitForSrcReg := False
 
   def checkStall(regSrcIdx: Int): Unit = {
     when(io.execRegisters(regSrcIdx).pending) {
-      io.stall := True
+      io.waitForSrcReg := True
     }
   }
 
