@@ -11,10 +11,10 @@ import spinal.lib.fsm._
 case class MemAccess() extends Component {
   val io = new Bundle {
     val request = slave(Flow(ExecMemPayload()))
-    /* answer.valid 决定了是否应该停止流水线 */
     val answer = master(Flow(ExecMemPayload()))
     val bypassWritePort = master(BypassWritePort())
     val dCachePort = master(CacheCorePort())
+    val dCacheMiss = out port Bool()
   }
 
   val reqData = io.request.payload
@@ -116,6 +116,8 @@ case class MemAccess() extends Component {
     }
   }
 
+  io.dCacheMiss := False
+
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
     val cacheMiss = new State
@@ -140,6 +142,8 @@ case class MemAccess() extends Component {
             doLoadStore(reqData)
           }
         }
+
+        io.dCacheMiss := !io.answer.valid
       }
     }
 
@@ -150,6 +154,8 @@ case class MemAccess() extends Component {
         doLoadStore(fsmReqData)
         goto(normalWorking)
       }
+
+      io.dCacheMiss := !io.answer.valid
     }
   }
 }
