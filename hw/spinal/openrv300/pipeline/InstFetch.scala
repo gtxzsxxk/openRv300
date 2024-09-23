@@ -44,6 +44,7 @@ case class InstFetch() extends Component {
     /* 正确的信号，代表dcache正在重填 */
     when(!io.dCacheMiss) {
       payload.instruction := io.iCachePort.readValue
+      io.iCachePort.valid := True
       when(!dCacheMissed) {
         payload.pcAddr := programCounter
 
@@ -52,9 +53,10 @@ case class InstFetch() extends Component {
         } otherwise {
           programCounter := programCounter + 4
         }
-
-        io.iCachePort.valid := True
       } otherwise {
+        /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
+        * 的下一条指令，并且将本流水级的状态设置到下下条指令
+        */
         payload.pcAddr := io.memAnswer.payload.instPc + 4
         io.iCachePort.address := io.memAnswer.payload.instPc + 4
 
