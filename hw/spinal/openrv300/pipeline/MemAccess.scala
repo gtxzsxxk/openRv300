@@ -117,6 +117,7 @@ case class MemAccess() extends Component {
   }
 
   io.dCacheMiss := False
+  io.answer.setIdle()
 
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
@@ -138,9 +139,8 @@ case class MemAccess() extends Component {
             io.answer.setIdle()
             fsmReqData := reqData
             goto(cacheMiss)
-          } otherwise {
-            doLoadStore(reqData)
           }
+          doLoadStore(reqData)
         }
 
         io.dCacheMiss := !io.answer.valid
@@ -151,9 +151,9 @@ case class MemAccess() extends Component {
       io.answer.setIdle()
       when(!io.dCachePort.needStall) {
         io.answer.push(ansPayload)
-        doLoadStore(fsmReqData)
         goto(normalWorking)
       }
+      doLoadStore(fsmReqData)
 
       io.dCacheMiss := !io.answer.valid
     }
