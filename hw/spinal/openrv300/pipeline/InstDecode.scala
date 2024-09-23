@@ -54,6 +54,9 @@ case class InstDecode() extends Component {
   }
 
   val reqData = FetchPayload()
+  val reqDataValid = Bool()
+  reqDataValid := False
+  val reqDataValidReg = RegNext(reqDataValid)
   val ansPayload = Reg(DecodePayload())
 
   /* 流水线停顿重放 */
@@ -67,8 +70,10 @@ case class InstDecode() extends Component {
   } otherwise {
     when(!io.waitForSrcReg) {
       reqData := io.request.payload
+      reqDataValid := io.request.valid
     } otherwise {
       reqData := lastRequest
+      reqDataValid := True
     }
   }
 
@@ -106,7 +111,8 @@ case class InstDecode() extends Component {
     io.execRegisters(port).which := registerSourceGPRs(port).which
   }
 
-  io.answer.push(ansPayload)
+  io.answer.payload := ansPayload
+  io.answer.valid := reqDataValidReg
 
   switch(ansPayload.instruction) {
     is(RV32I.JALR) {
