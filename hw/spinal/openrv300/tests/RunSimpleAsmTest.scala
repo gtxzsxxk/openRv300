@@ -11,28 +11,28 @@ object RunSimpleAsmTest extends App {
   case class AssemblyTest(asmFile: String, cycle: Int, verify: (OpenRv300) => Unit)
 
   val tests = Seq(
-    AssemblyTest("StoreAndLoad", 16, (dut) => {
+    AssemblyTest("StoreAndLoad", 80, (dut) => {
       assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
-      assert(dut.gprs.registers.getBigInt(1) == BigInt(4))
+      assert(dut.gprs.registers.getBigInt(1) == BigInt(0x80001000L))
       assert(dut.gprs.registers.getBigInt(2) == BigInt(6))
-      assert(dut.gprs.registers.getBigInt(3) == BigInt(11))
-      assert(dut.gprs.registers.getBigInt(4) == BigInt(13))
+      assert(dut.gprs.registers.getBigInt(3) == BigInt(6))
+      assert(dut.gprs.registers.getBigInt(4) == BigInt(8))
     }),
-    AssemblyTest("StoreHalfWord", 16, (dut) => {
+    AssemblyTest("StoreHalfWord", 80, (dut) => {
       assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
       assert(dut.gprs.registers.getBigInt(1) == BigInt(0x12345678L))
       assert(dut.gprs.registers.getBigInt(2) == BigInt(0xfbfbfafaL))
-      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x4))
+      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x80001000L))
       assert(dut.gprs.registers.getBigInt(4) == BigInt(0x5678fafaL))
     }),
-    AssemblyTest("LoadAndLoad", 25, (dut) => {
+    AssemblyTest("LoadAndLoad", 150, (dut) => {
       assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
-      assert(dut.gprs.registers.getBigInt(1) == BigInt(0x04))
-      assert(dut.gprs.registers.getBigInt(2) == BigInt(0x08))
-      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x99))
-      assert(dut.gprs.registers.getBigInt(4) == BigInt(0x99))
-      assert(dut.gprs.registers.getBigInt(5) == BigInt(0x9B))
-      assert(dut.gprs.registers.getBigInt(6) == BigInt(0x88))
+      assert(dut.gprs.registers.getBigInt(1) == BigInt(0x80000f04L))
+      assert(dut.gprs.registers.getBigInt(2) == BigInt(0x80001f04L))
+      assert(dut.gprs.registers.getBigInt(3) == BigInt(0x80000f14L))
+      assert(dut.gprs.registers.getBigInt(4) == BigInt(0x80001f14L))
+      assert(dut.gprs.registers.getBigInt(5) == BigInt(0x9D))
+      assert(dut.gprs.registers.getBigInt(6) == BigInt(0x9C))
     })
   )
 
