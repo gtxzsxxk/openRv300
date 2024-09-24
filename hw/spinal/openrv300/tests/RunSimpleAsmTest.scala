@@ -33,6 +33,12 @@ object RunSimpleAsmTest extends App {
       assert(dut.gprs.registers.getBigInt(4) == BigInt(0x80001f14L))
       assert(dut.gprs.registers.getBigInt(5) == BigInt(0x9D))
       assert(dut.gprs.registers.getBigInt(6) == BigInt(0x9C))
+    }),
+    AssemblyTest("OneSumTo100", 640, (dut) => {
+      assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
+      assert(dut.gprs.registers.getBigInt(10) == BigInt(5050))
+      assert(dut.gprs.registers.getBigInt(11) == BigInt(101))
+      assert(dut.gprs.registers.getBigInt(5) == BigInt(101))
     })
   )
 
@@ -77,7 +83,6 @@ object RunSimpleAsmTest extends App {
       dut.clockDomain.deassertReset()
 
       for (idx <- 0 until tst.cycle) {
-        println(dut.fetch.programCounter.toLong)
         dut.clockDomain.waitRisingEdge()
       }
 
