@@ -4,6 +4,7 @@ import openrv300.Config.startAddress
 import openrv300.cache._
 import spinal.core._
 import spinal.lib._
+import spinal.lib.fsm._
 import payload.{ExecMemPayload, FetchPayload}
 
 case class InstFetch() extends Component {
@@ -32,6 +33,46 @@ case class InstFetch() extends Component {
   val fetchValid = Reg(Bool())
   fetchValid := True
   io.answer.valid := fetchValid
+
+  val fsm = new StateMachine {
+    val normalWorking = new State with EntryPoint
+    val iCacheMiss = new State
+    val dCacheMiss = new State
+
+    normalWorking.whenIsActive {
+      when(io.iCachePort.needStall) {
+        fetchValid := False
+        goto(iCacheMiss)
+      } otherwise {
+        /* 遇到源寄存器不满足，需要重放 */
+        when(io.needReplay && (!justReset)) {
+          payload.pcAddr := payload.pcAddr
+          payload.instruction := payload.instruction
+
+          programCounter := payload.pcAddr + 4
+        } otherwise {
+          justReset := False
+
+          /* dCache 没有 Miss，正常取指
+          *  任何一个缓存 miss 了都应该暂停流水线
+          */
+          when(!io.dCacheMiss){
+
+          } otherwise {
+            fetchValid := False
+          }
+        }
+      }
+    }
+
+    iCacheMiss.whenIsActive {
+      fetchValid := False
+      when(!io.iCachePort.needStall) {
+        io.answer.valid := True
+
+      }
+    }
+  }
 
   when(io.needReplay && (!justReset)) {
     payload.pcAddr := payload.pcAddr
