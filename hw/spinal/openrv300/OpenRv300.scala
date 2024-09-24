@@ -66,4 +66,6 @@ case class OpenRv300() extends Component {
   ddr.io.memPort <> crossbar.io.coreBus
 
   exec.io.isStalling := decode.io.waitForSrcReg || mem.io.dCacheMiss
+
+  decode.io.takeJump := exec.io.answer.payload.takeJump
 }

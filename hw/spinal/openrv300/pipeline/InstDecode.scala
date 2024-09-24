@@ -16,6 +16,7 @@ case class InstDecode() extends Component {
     /* 纯组合逻辑 */
     val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
     val waitForSrcReg = out port Bool()
+    val takeJump = in port Bool()
   }
 
   /* 此时源寄存器不再随着ans payload寄存，所以需要使用寄存器 */
@@ -57,6 +58,7 @@ case class InstDecode() extends Component {
   val reqDataValid = Bool()
   reqDataValid := False
   val reqDataValidReg = RegNext(reqDataValid)
+  val takeJumpReg = RegNext(io.takeJump)
   val ansPayload = Reg(DecodePayload())
 
   /* 流水线停顿重放 */
@@ -112,7 +114,7 @@ case class InstDecode() extends Component {
   }
 
   io.answer.payload := ansPayload
-  io.answer.valid := reqDataValidReg
+  io.answer.valid := reqDataValidReg & !takeJumpReg
 
   switch(ansPayload.instruction) {
     is(RV32I.JALR) {
