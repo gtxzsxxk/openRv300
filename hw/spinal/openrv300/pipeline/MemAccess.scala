@@ -110,6 +110,7 @@ case class MemAccess() extends Component {
           is(B"010") {
             /* SW */
             dataToWrite := requestData.registerSources(1).value
+            writeMask := B"1111"
           }
         }
       }

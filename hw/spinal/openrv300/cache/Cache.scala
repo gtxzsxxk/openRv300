@@ -78,6 +78,7 @@ case class Cache(ways: Int) extends Component {
 
     val fsmIsWrite = Reg(Bool())
     val fsmWriteValue = Reg(Bits(32 bits))
+    val fsmWriteMask = Reg(Bits(4 bits))
     val fsmTag = Reg(UInt(20 bits))
     val fsmIndex = Reg(UInt(6 bits))
     val fsmOffset = Reg(UInt(6 bits))
@@ -107,7 +108,12 @@ case class Cache(ways: Int) extends Component {
           group := cacheMemories(index)
           group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
           when(io.corePort.isWrite) {
-            cacheLine.data(offsetByWord) := io.corePort.writeValue
+            for(idx <- 0 until 4) {
+              when(io.corePort.writeMask(idx) === True) {
+                cacheLine.data(offsetByWord).subdivideIn(4 slices)(idx) :=
+                  io.corePort.writeValue.subdivideIn(4 slices)(idx)
+              }
+            }
             cacheLineFlags.dirtyVec(whichWay) := True
           } otherwise {
             io.corePort.readValue := cacheLine.data(offsetByWord)
@@ -128,6 +134,7 @@ case class Cache(ways: Int) extends Component {
 
           when(io.corePort.isWrite) {
             fsmWriteValue := io.corePort.writeValue
+            fsmWriteMask := io.corePort.writeMask
           }
 
           when(hasFreeLine) {
@@ -284,7 +291,12 @@ case class Cache(ways: Int) extends Component {
       group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempLine.asBits
 
       when(fsmIsWrite) {
-        fsmTempLine.data(fsmOffsetByWord) := fsmWriteValue
+        for (idx <- 0 until 4) {
+          when(fsmWriteMask(idx) === True) {
+            fsmTempLine.data(fsmOffsetByWord).subdivideIn(4 slices)(idx) :=
+              fsmWriteValue.subdivideIn(4 slices)(idx)
+          }
+        }
         fsmTempLineFlags.dirtyVec(whichWayToEvict) := True
       } otherwise {
         io.corePort.readValue := fsmTempLine.data(fsmOffsetByWord)
