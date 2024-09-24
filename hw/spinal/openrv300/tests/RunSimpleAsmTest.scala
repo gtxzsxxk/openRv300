@@ -62,6 +62,7 @@ object RunSimpleAsmTest extends App {
       core.ddr.simMemory.simPublic()
       core.fetch.programCounter.simPublic()
       core.gprs.registers.simPublic()
+      core.wb.reqData.simPublic()
       core
     }.doSim { dut =>
       var cnt = 0
@@ -82,11 +83,20 @@ object RunSimpleAsmTest extends App {
       dut.clockDomain.waitRisingEdge()
       dut.clockDomain.deassertReset()
 
+      var retireCnt = 0
       for (idx <- 0 until tst.cycle) {
+        if(!dut.wb.reqData.isNOP.toBoolean) {
+          retireCnt += 1
+        }
         dut.clockDomain.waitRisingEdge()
       }
 
       tst.verify(dut)
+
+      val IPC = retireCnt.toDouble / tst.cycle.toDouble
+      println("======= Performance Summary =======")
+      println(f"Instructions retired: $retireCnt\t\tCycles: ${tst.cycle}")
+      println(f"IPC: $IPC%.4f")
     }
   }
 }

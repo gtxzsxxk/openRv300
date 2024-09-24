@@ -21,6 +21,7 @@ case class InstExec() extends Component {
   ansPayload.microOp := reqData.microOp
   ansPayload.instPc := reqData.instPc
   ansPayload.instruction := reqData.instruction
+  ansPayload.isNOP := False
   ansPayload.function0 := reqData.function0
   ansPayload.function1 := reqData.function1
   ansPayload.regDest := reqData.regDest
@@ -52,11 +53,14 @@ case class InstExec() extends Component {
     io.execRegisters(idx).value
   }
 
-  def NOP(): Unit = {
+  def NOP(fakeNop: Boolean = false): Unit = {
     ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
+    if(!fakeNop) {
+      ansPayload.isNOP := True
+    }
     insertBypass(true)
   }
 
@@ -124,7 +128,7 @@ case class InstExec() extends Component {
 
         ansPayload.jumpPc := reqData.instPc + reqData.sextImm.asUInt
 
-        NOP()
+        NOP(true)
       }
       is(MicroOp.LOAD, MicroOp.STORE) {
         ansPayload.writeRegDest := reqData.microOp === MicroOp.LOAD

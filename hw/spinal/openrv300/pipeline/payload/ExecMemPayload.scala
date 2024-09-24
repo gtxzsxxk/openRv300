@@ -7,6 +7,7 @@ case class ExecMemPayload() extends Bundle {
 
   val instPc = UInt(32 bits)
   val instruction = Bits(32 bits)
+  val isNOP = Bool()
 
   val function0 = Bits(3 bits)
   val function1 = Bits(7 bits)
