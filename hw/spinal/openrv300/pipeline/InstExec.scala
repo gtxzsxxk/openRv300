@@ -52,15 +52,19 @@ case class InstExec() extends Component {
     io.execRegisters(idx).value
   }
 
-  io.answer.push(ansPayload)
-
-  when(io.isStalling || !io.request.valid) {
-    /* 译出NOP */
+  def NOP(): Unit = {
     ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
     insertBypass(true)
+  }
+
+  io.answer.push(ansPayload)
+
+  when(io.isStalling || !io.request.valid || ansPayload.takeJump) {
+    /* 译出NOP */
+    NOP()
   } otherwise  {
     switch(reqData.microOp) {
       is(MicroOp.LUI) {
@@ -120,6 +124,7 @@ case class InstExec() extends Component {
 
         ansPayload.jumpPc := reqData.instPc + reqData.sextImm.asUInt
 
+        NOP()
       }
       is(MicroOp.LOAD, MicroOp.STORE) {
         ansPayload.writeRegDest := reqData.microOp === MicroOp.LOAD
