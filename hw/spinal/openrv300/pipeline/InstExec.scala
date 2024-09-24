@@ -56,6 +56,7 @@ case class InstExec() extends Component {
 
   when(io.isStalling || !io.request.valid) {
     /* 译出NOP */
+    ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
