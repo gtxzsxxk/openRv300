@@ -12,8 +12,11 @@ case class InstFetch() extends Component {
     val needReplay = in port Bool()
     val memAnswer = slave(Flow(ExecMemPayload()))
     val dCacheMiss = in port Bool()
-    val answer = master(Flow(FetchPayload()))
     val iCachePort = master(CacheCorePort())
+    val takeJump = in port Bool()
+    val jumpAddress = in port UInt(32 bits)
+
+    val answer = master(Flow(FetchPayload()))
   }
 
   val programCounter = RegInit(startAddress)
@@ -40,7 +43,10 @@ case class InstFetch() extends Component {
     val dCacheMiss = new State
 
     normalWorking.whenIsActive {
-      when(io.iCachePort.needStall) {
+      when(io.takeJump) {
+        programCounter := io.jumpAddress
+        fetchValid := False
+      } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
         goto(iCacheMiss)
       } otherwise {

@@ -68,4 +68,6 @@ case class OpenRv300() extends Component {
   exec.io.isStalling := decode.io.waitForSrcReg || mem.io.dCacheMiss
 
   decode.io.takeJump := exec.io.answer.payload.takeJump
+  fetch.io.takeJump := exec.io.answer.payload.takeJump
+  fetch.io.jumpAddress := exec.io.answer.payload.jumpPc
 }
