@@ -18,20 +18,20 @@ case class InstFetch() extends Component {
 
   val programCounter = RegInit(startAddress)
 
-  io.iCachePort.valid := False
+  io.iCachePort.valid := True
   io.iCachePort.address := programCounter
   io.iCachePort.isWrite := False
   io.iCachePort.writeValue := B"32'd0"
   io.iCachePort.writeMask := B"4'd0"
 
-  val payload = Reg(FetchPayload())
-  io.answer.payload := payload
+  val ansPayload = Reg(FetchPayload())
+  io.answer.payload := ansPayload
 
   val justReset = Reg(Bool()) init (True)
 
   val dCacheMissed = RegNext(io.dCacheMiss)
   val fetchValid = Reg(Bool())
-  fetchValid := True
+  fetchValid := False
   io.answer.valid := fetchValid
 
   val fsm = new StateMachine {
@@ -46,20 +46,28 @@ case class InstFetch() extends Component {
       } otherwise {
         /* 遇到源寄存器不满足，需要重放 */
         when(io.needReplay && (!justReset)) {
-          payload.pcAddr := payload.pcAddr
-          payload.instruction := payload.instruction
+          ansPayload.pcAddr := ansPayload.pcAddr
+          ansPayload.instruction := ansPayload.instruction
 
-          programCounter := payload.pcAddr + 4
+          programCounter := ansPayload.pcAddr + 4
+
+          fetchValid := True
         } otherwise {
           justReset := False
 
           /* dCache 没有 Miss，正常取指
           *  任何一个缓存 miss 了都应该暂停流水线
           */
-          when(!io.dCacheMiss){
+          when(!io.dCacheMiss) {
+            ansPayload.instruction := io.iCachePort.readValue
+            ansPayload.pcAddr := programCounter
 
+            programCounter := programCounter + 4
+
+            fetchValid := True
           } otherwise {
             fetchValid := False
+            goto(dCacheMiss)
           }
         }
       }
@@ -68,47 +76,31 @@ case class InstFetch() extends Component {
     iCacheMiss.whenIsActive {
       fetchValid := False
       when(!io.iCachePort.needStall) {
-        io.answer.valid := True
+        fetchValid := True
 
+        ansPayload.pcAddr := programCounter
+        ansPayload.instruction := io.iCachePort.readValue
+
+        programCounter := programCounter + 4
+        goto(normalWorking)
       }
     }
-  }
 
-  when(io.needReplay && (!justReset)) {
-    payload.pcAddr := payload.pcAddr
-    payload.instruction := payload.instruction
-
-    programCounter := payload.pcAddr + 4
-  } otherwise {
-    justReset := False
-
-    /* 正确的信号，代表dcache正在重填 */
-    when(!io.dCacheMiss) {
-      payload.instruction := io.iCachePort.readValue
-      io.iCachePort.valid := True
-      when(!dCacheMissed) {
-        payload.pcAddr := programCounter
-
-        when(io.iCachePort.needStall) {
-          fetchValid := False
-        } otherwise {
-          programCounter := programCounter + 4
-        }
-      } otherwise {
+    dCacheMiss.whenIsActive {
+      fetchValid := False
+      when(!io.dCacheMiss && dCacheMissed) {
         /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
         * 的下一条指令，并且将本流水级的状态设置到下下条指令
         */
-        payload.pcAddr := io.memAnswer.payload.instPc + 4
+        fetchValid := True
+
+        ansPayload.pcAddr := io.memAnswer.payload.instPc + 4
+        ansPayload.instruction := io.iCachePort.readValue
         io.iCachePort.address := io.memAnswer.payload.instPc + 4
 
-        when(io.iCachePort.needStall) {
-          fetchValid := False
-        } otherwise {
-          programCounter := io.memAnswer.payload.instPc + 4 + 4
-        }
+        programCounter := io.memAnswer.payload.instPc + 4 + 4
+        goto(normalWorking)
       }
-    } otherwise {
-      fetchValid := False
     }
   }
 }
