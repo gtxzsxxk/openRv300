@@ -20,13 +20,26 @@ case object DiffTestUtils {
   }
 
   def temuRunOneInstAndCompare(inst: BigInt, instPc: BigInt, nextPc: BigInt, registers: Array[BigInt]): Boolean = {
-    val r = get(diffTestServer + f"/exec/$inst%08x")
+    val r = get(diffTestServer + f"/exec")
     val result: ujson.Value = read(r.text())
     var returnValue = false
     if (result("valid").bool) {
+      var instOk = true
+      if (f"0x$inst%08x" != result("instruction_ref").str) {
+        println("============ Differential Test Failed ============")
+        println(f"Program should exec ${result("instruction_ref").str}")
+        println(f"But your implementation turned to 0x$inst%08x")
+        println(f"Instruction 0x$inst%08x @ 0x$instPc%08x")
+        println("==================================================")
+
+        instOk = false
+      }
+
       var pcOk = true
       if (f"0x$nextPc%08x" != result("pc").str) {
-        println("============ Differential Test Failed ============")
+        if (instOk) {
+          println("============ Differential Test Failed ============")
+        }
         println(f"Program should jump to ${result("pc").str}")
         println(f"But your implementation jumped to 0x$nextPc%08x")
         print("\r\n")
@@ -71,7 +84,7 @@ case object DiffTestUtils {
         println("==================================================")
       }
 
-      returnValue = pcOk && registerOkFlag
+      returnValue = instOk && pcOk && registerOkFlag
     }
     returnValue
   }
