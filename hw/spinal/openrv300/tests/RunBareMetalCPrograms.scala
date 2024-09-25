@@ -1,12 +1,13 @@
 package openrv300.tests
 
-import sys.process._
-import java.nio.file.{Files, Paths}
-import openrv300.Config.{abi, arch, riscvToolchain}
-import openrv300.isa.MicroOp
+import openrv300.Config.riscvToolchain
 import openrv300.{Config, OpenRv300}
 import spinal.core._
 import spinal.core.sim._
+
+import java.nio.file.{Files, Paths}
+import scala.sys.process._
+import requests
 
 object RunBareMetalCPrograms extends App {
   case class BareMetalCProgram(cFile: String, verify: (OpenRv300) => Unit)
@@ -19,6 +20,9 @@ object RunBareMetalCPrograms extends App {
 
   val cwd = System.getProperty("user.dir")
   val asmFilePath = "hw/spinal/openrv300/tests/bareMetalCPrograms"
+  val diffTestEnabled = true
+  val diffTestServer = "http://127.0.0.1:5000"
+  val diffTestRamStart = 0x80000000L
 
   tests.foreach { tst =>
     val binFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.cFile + ".bin").toString).toString
@@ -45,6 +49,13 @@ object RunBareMetalCPrograms extends App {
           ((bytes(3) & 0xFF) << 24)
 
         dut.ddr.simMemory.setBigInt(cnt, BigInt(word & 0xFFFFFFFFL))
+
+        if (diffTestEnabled) {
+          val dfAddr = diffTestRamStart + cnt * 4
+          val dfData = BigInt(word & 0xFFFFFFFFL)
+          val r = requests.get(diffTestServer + f"/ddr/write/$dfAddr%08x/$dfData%08x")
+        }
+
         cnt += 1
       }
 
@@ -56,8 +67,8 @@ object RunBareMetalCPrograms extends App {
 
       var retireCnt = 0
       var cycles = 0
-      while(dut.wb.reqData.microOp.toInt != 19) {
-        if(!dut.wb.reqData.isNOP.toBoolean) {
+      while (dut.wb.reqData.microOp.toInt != 19) {
+        if (!dut.wb.reqData.isNOP.toBoolean) {
           retireCnt += 1
         }
         cycles += 1
