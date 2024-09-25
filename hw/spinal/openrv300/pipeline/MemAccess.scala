@@ -19,6 +19,8 @@ case class MemAccess() extends Component {
 
   val reqData = io.request.payload
   val ansPayload = Reg(ExecMemPayload())
+  val ansValid = Reg(Bool()) init (False)
+  io.answer.valid := ansValid
 
   ansPayload <> reqData
 
@@ -53,6 +55,8 @@ case class MemAccess() extends Component {
     io.dCachePort.writeValue := dataToWrite
     io.dCachePort.valid := True
     io.dCachePort.writeMask := writeMask
+
+    ansPayload := requestData
 
     switch(requestData.microOp) {
       is(MicroOp.LOAD) {
@@ -118,7 +122,8 @@ case class MemAccess() extends Component {
   }
 
   io.dCacheMiss := False
-  io.answer.setIdle()
+
+  io.answer.payload.assignDontCare()
 
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
@@ -131,32 +136,34 @@ case class MemAccess() extends Component {
         insertBypass(true)
       }
 
+      ansValid := False
       /* TODO: 处理地址越界，产生异常 */
       when(io.request.valid) {
-        io.answer.push(ansPayload)
+        io.answer.payload := ansPayload
+        ansValid := True
 
         when(reqData.microOp === MicroOp.LOAD || reqData.microOp === MicroOp.STORE) {
           when(io.dCachePort.needStall) {
             fsmReqData := reqData
+            io.dCacheMiss := True
+            ansValid := False
             goto(cacheMiss)
           }
           doLoadStore(reqData)
         }
-
-        io.dCacheMiss := !io.answer.valid
       }
     }
 
     cacheMiss.whenIsActive {
       io.answer.payload := fsmReqData
-      io.answer.valid := False
+      ansValid := False
       when(!io.dCachePort.needStall) {
-        io.answer.valid := True
+        ansValid := True
         goto(normalWorking)
       }
       doLoadStore(fsmReqData)
 
-      io.dCacheMiss := !io.answer.valid
+      io.dCacheMiss := io.dCachePort.needStall
     }
   }
 }
