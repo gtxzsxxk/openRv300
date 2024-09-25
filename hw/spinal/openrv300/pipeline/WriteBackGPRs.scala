@@ -16,6 +16,7 @@ case class WriteBackGPRs() extends Component {
   }
 
   val reqData = io.request.payload
+  val reqValid = io.request.valid
 
   io.regWritePort.writeEnable := False
   io.regWritePort.writeAddr := U"5'd0"
@@ -36,7 +37,7 @@ case class WriteBackGPRs() extends Component {
     bypassWPort.finished := Bool(solvedThisStage)
   }
 
-  when(io.request.valid && reqData.writeRegDest) {
+  when(reqValid && reqData.writeRegDest) {
     io.regWritePort.writeEnable := True
     io.regWritePort.writeAddr := reqData.regDest
     io.regWritePort.writeData := reqData.regDestValue
