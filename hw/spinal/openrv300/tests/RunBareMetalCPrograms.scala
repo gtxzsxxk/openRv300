@@ -80,7 +80,7 @@ object RunBareMetalCPrograms extends App {
       var lastInst: BigInt = 0
       var lastInstPc: BigInt = 0
 
-      while (dut.wb.reqData.microOp.toInt != 19) {
+      while (!(dut.wb.reqData.microOp.toInt == 19 && dut.wb.reqValid.toBoolean)) {
         if (lastInstValid && diffTestEnabled && !dut.wb.reqData.isNOP.toBoolean && dut.wb.reqValid.toBoolean) {
           lastInstValid = false;
           val regfile = Array.fill[BigInt](32)(0)
