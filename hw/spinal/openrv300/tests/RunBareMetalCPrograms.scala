@@ -4,10 +4,10 @@ import openrv300.Config.riscvToolchain
 import openrv300.{Config, OpenRv300}
 import spinal.core._
 import spinal.core.sim._
+import utils.DiffTestUtils._
 
 import java.nio.file.{Files, Paths}
 import scala.sys.process._
-import requests
 
 object RunBareMetalCPrograms extends App {
   case class BareMetalCProgram(cFile: String, verify: (OpenRv300) => Unit)
@@ -21,8 +21,6 @@ object RunBareMetalCPrograms extends App {
   val cwd = System.getProperty("user.dir")
   val asmFilePath = "hw/spinal/openrv300/tests/bareMetalCPrograms"
   val diffTestEnabled = true
-  val diffTestServer = "http://127.0.0.1:5000"
-  val diffTestRamStart = 0x80000000L
 
   tests.foreach { tst =>
     val binFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.cFile + ".bin").toString).toString
@@ -38,9 +36,18 @@ object RunBareMetalCPrograms extends App {
       core.fetch.programCounter.simPublic()
       core.gprs.registers.simPublic()
       core.wb.reqData.simPublic()
+      core.wb.reqValid.simPublic()
       core
     }.doSim { dut =>
       var cnt = 0
+
+      temuReset()
+
+      /* 寄存器全部设为0 */
+      for (idx <- 0 until 32) {
+        dut.gprs.registers.setBigInt(idx, 0)
+      }
+
       binaryData.grouped(4).foreach { bytes =>
         // 小端拼接，将 bytes(0) 放到最低位，bytes(3) 放到最高位
         val word = (bytes(0) & 0xFF) |
@@ -53,7 +60,8 @@ object RunBareMetalCPrograms extends App {
         if (diffTestEnabled) {
           val dfAddr = diffTestRamStart + cnt * 4
           val dfData = BigInt(word & 0xFFFFFFFFL)
-          val r = requests.get(diffTestServer + f"/ddr/write/$dfAddr%08x/$dfData%08x")
+
+          assert(temuWriteSimDDR(dfAddr, dfData))
         }
 
         cnt += 1
@@ -67,10 +75,29 @@ object RunBareMetalCPrograms extends App {
 
       var retireCnt = 0
       var cycles = 0
+
+      var lastInstValid = false
+      var lastInst: BigInt = 0
+      var lastInstPc: BigInt = 0
+
       while (dut.wb.reqData.microOp.toInt != 19) {
-        if (!dut.wb.reqData.isNOP.toBoolean) {
-          retireCnt += 1
+        if (lastInstValid && diffTestEnabled && !dut.wb.reqData.isNOP.toBoolean && dut.wb.reqValid.toBoolean) {
+          lastInstValid = false;
+          val regfile = Array.fill[BigInt](32)(0)
+          for (idx <- 0 until 32) {
+            regfile(idx) = dut.gprs.registers.getBigInt(idx)
+          }
+
+          assert(temuRunOneInstAndCompare(lastInst, lastInstPc, dut.wb.reqData.instPc.toBigInt, regfile))
         }
+
+        if (!dut.wb.reqData.isNOP.toBoolean && dut.wb.reqValid.toBoolean) {
+          retireCnt += 1
+          lastInstValid = true
+          lastInst = dut.wb.reqData.instruction.toBigInt
+          lastInstPc = dut.wb.reqData.instPc.toBigInt
+        }
+
         cycles += 1
         dut.clockDomain.waitRisingEdge()
       }

@@ -8,12 +8,12 @@ val spinalLib = "com.github.spinalhdl" %% "spinalhdl-lib" % spinalVersion
 val spinalIdslPlugin = compilerPlugin("com.github.spinalhdl" %% "spinalhdl-idsl-plugin" % spinalVersion)
 
 val testRequests = "com.lihaoyi" %% "requests" % "0.9.0"
-val uPickle = "com.lihaoyi" %% "upickle" % "4.0.0"
+val uJson = "com.lihaoyi" %% "ujson" % "4.0.0"
 
 lazy val openrv300 = (project in file("."))
   .settings(
     Compile / scalaSource := baseDirectory.value / "hw" / "spinal",
-    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin, testRequests, uPickle)
+    libraryDependencies ++= Seq(spinalCore, spinalLib, spinalIdslPlugin, testRequests, uJson)
   )
 
 fork := true
