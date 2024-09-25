@@ -20,4 +20,5 @@ object MicroOp {
   def ARITH_SRA = B"7'd18"
   def FENCE = B"7'd12"
   def FENCE_TSO = B"7'd12"
+  def ECALL = B"7'd19"
 }

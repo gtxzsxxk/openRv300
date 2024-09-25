@@ -38,9 +38,9 @@ case class InstDecode() extends Component {
     registerSourceGPRs(port) := bundle
   }
 
-  def NOP(): Unit = {
+  def NOP(microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
     val tmpBundle = RegisterSourceBundle()
-    ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
+    ansPayload.microOp := microOp
     ansPayload.function0 := B"000"
 
     ansPayload.regDest := U"5'd0"
@@ -231,7 +231,7 @@ case class InstDecode() extends Component {
     }
     is(RV32I.ECALL) {
       /* TODO: raise an exception */
-      NOP()
+      NOP(MicroOp.ECALL)
     }
     default {
       /* TODO: raise an exception */

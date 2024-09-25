@@ -53,8 +53,8 @@ case class InstExec() extends Component {
     io.execRegisters(idx).value
   }
 
-  def NOP(fakeNop: Boolean = false): Unit = {
-    ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
+  def NOP(fakeNop: Boolean = false, microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
+    ansPayload.microOp := microOp
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
@@ -244,6 +244,9 @@ case class InstExec() extends Component {
         ansPayload.writeRegDest := True
         ansPayload.regDestValue := (registerSourceValues(0).asSInt >> registerSourceValues(1).asUInt.resize(5)).asBits
         insertBypass(true)
+      }
+      is(MicroOp.ECALL) {
+        NOP(microOp = MicroOp.ECALL)
       }
       default {
         /* TODO: illegal Inst. */
