@@ -81,7 +81,11 @@ case class InstFetch() extends Component {
 
     iCacheMiss.whenIsActive {
       fetchValid := False
-      when(!io.iCachePort.needStall) {
+      when(io.takeJump) {
+        programCounter := io.jumpAddress
+        fetchValid := False
+      }
+      when (!io.iCachePort.needStall) {
         fetchValid := True
 
         ansPayload.pcAddr := programCounter
