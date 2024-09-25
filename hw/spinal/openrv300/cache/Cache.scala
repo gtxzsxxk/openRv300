@@ -96,9 +96,10 @@ case class Cache(ways: Int) extends Component {
     val writeDirty = new State
     val writeWaitB = new State
     val readCacheLine = new State
-    val finish = new State
 
     cacheNormalWorking.whenIsActive {
+      io.memPort.r.setBlocked()
+
       when(io.corePort.valid) {
         evictCounter := 0
         whichWayToEvictCnt := U"64'hFFFF_FFFF_FFFF_FFFF"
@@ -108,7 +109,7 @@ case class Cache(ways: Int) extends Component {
           group := cacheMemories(index)
           group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
           when(io.corePort.isWrite) {
-            for(idx <- 0 until 4) {
+            for (idx <- 0 until 4) {
               when(io.corePort.writeMask(idx) === True) {
                 cacheLine.data(offsetByWord).subdivideIn(4 slices)(idx) :=
                   io.corePort.writeValue.subdivideIn(4 slices)(idx)
@@ -264,9 +265,9 @@ case class Cache(ways: Int) extends Component {
             fsmTempLine.data(readCnt.resized) := r.data
 
             val group = Bits(cacheGroupBits bits)
-            group := cacheMemories(index)
+            group := cacheMemories(fsmIndex)
             group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempLine.asBits
-            cacheMemories.write(index, group)
+            cacheMemories.write(fsmIndex, group)
 
             readCnt := readCnt + 1
           }
@@ -275,41 +276,13 @@ case class Cache(ways: Int) extends Component {
             fsmTempLineFlags.dirtyVec(whichWayToEvict) := False
             fsmTempLineFlags.counterVec(whichWayToEvict) := U"64'd0"
             cacheFlags.write(fsmIndex, fsmTempLineFlags.asBits)
-            goto(finish)
+            fsmNeedStall := False
+            goto(cacheNormalWorking)
           }
         }
       }
 
       io.corePort.needStall := fsmNeedStall
-    }
-
-    finish.onEntry(fsmNeedStall := False).whenIsActive {
-      io.memPort.r.setBlocked()
-
-      val group = Bits(cacheGroupBits bits)
-      group := cacheMemories(fsmIndex)
-      group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempLine.asBits
-
-      when(fsmIsWrite) {
-        for (idx <- 0 until 4) {
-          when(fsmWriteMask(idx) === True) {
-            fsmTempLine.data(fsmOffsetByWord).subdivideIn(4 slices)(idx) :=
-              fsmWriteValue.subdivideIn(4 slices)(idx)
-          }
-        }
-        fsmTempLineFlags.dirtyVec(whichWayToEvict) := True
-      } otherwise {
-        io.corePort.readValue := fsmTempLine.data(fsmOffsetByWord)
-      }
-
-      val writeTmpCacheLineFlags = CacheLineFlags(ways)
-      writeTmpCacheLineFlags := fsmTempLineFlags
-      writeTmpCacheLineFlags.counterVec(whichWay) := fsmTempLineFlags.counterVec(whichWay) + 1
-      cacheMemories.write(fsmIndex, group)
-      cacheFlags.write(fsmIndex, writeTmpCacheLineFlags.asBits)
-      goto(cacheNormalWorking)
-
-      io.corePort.needStall := False
     }
   }
 }
