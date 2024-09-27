@@ -22,6 +22,9 @@ object RunBareMetalCPrograms extends App {
     BareMetalCProgram("test3", dut => {
       assert(dut.gprs.registers.getBigInt(10) == BigInt(55))
     }),
+    BareMetalCProgram("ieee754", dut => {
+      assert(dut.gprs.registers.getBigInt(10) == BigInt(125))
+    }),
   )
 
   val cwd = System.getProperty("user.dir")
