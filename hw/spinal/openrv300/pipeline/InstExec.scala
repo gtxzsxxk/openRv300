@@ -227,7 +227,7 @@ case class InstExec() extends Component {
         } otherwise {
           when(reqData.function0 === B"000") {
             /* SUB */
-            ansPayload.regDestValue := (registerSourceValues(0).asUInt + registerSourceValues(1).asUInt).asBits
+            ansPayload.regDestValue := (registerSourceValues(0).asUInt - registerSourceValues(1).asUInt).asBits
           } otherwise {
             /* TODO: illegal Inst. */
           }
