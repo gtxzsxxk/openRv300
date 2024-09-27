@@ -50,7 +50,9 @@ object RunBareMetalCPrograms extends App {
     }.doSim { dut =>
       var cnt = 0
 
-      temuReset()
+      if (diffTestEnabled) {
+        temuReset()
+      }
 
       /* 寄存器全部设为0 */
       for (idx <- 0 until 32) {
