@@ -17,6 +17,8 @@ case class InstExec() extends Component {
 
   val reqData = io.request.payload
   val ansPayload = Reg(ExecMemPayload())
+  val ansValid = Reg(Bool()) init(False)
+  io.answer.valid := ansValid
 
   ansPayload.microOp := reqData.microOp
   ansPayload.instPc := reqData.instPc
@@ -60,11 +62,13 @@ case class InstExec() extends Component {
     ansPayload.regDestValue := B"32'd0"
     if(!fakeNop) {
       ansPayload.isNOP := True
+      ansValid := False
     }
     insertBypass(true)
   }
 
-  io.answer.push(ansPayload)
+  io.answer.payload := ansPayload
+  ansValid := True
 
   when(io.isStalling || !io.request.valid || ansPayload.takeJump) {
     /* 译出NOP */
@@ -128,7 +132,7 @@ case class InstExec() extends Component {
 
         ansPayload.jumpPc := reqData.instPc + reqData.sextImm.asUInt
 
-        NOP(true)
+        NOP(fakeNop = true)
       }
       is(MicroOp.LOAD, MicroOp.STORE) {
         ansPayload.writeRegDest := reqData.microOp === MicroOp.LOAD
