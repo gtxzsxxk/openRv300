@@ -203,7 +203,7 @@ case class InstDecode() extends Component {
         ansPayload.microOp := MicroOp.ARITH_SRA_IMM
       }
 
-      reqData.instruction(11 downto 7).asUInt
+      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       ansPayload.imm := reqData.instruction(24 downto 20).resized
     }
