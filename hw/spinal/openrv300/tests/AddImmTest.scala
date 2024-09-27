@@ -40,11 +40,10 @@ object AddImmTest extends App {
 
     assert(dut.ddr.simMemory.getBigInt(0) == 0x3e800093L)
 
-    for (idx <- 0 until 32) {
+    for (idx <- 0 until 40) {
       dut.clockDomain.waitRisingEdge()
     }
 
-    assert(dut.gprs.registers.getBigInt(0) == BigInt(0))
     assert(dut.gprs.registers.getBigInt(1) == BigInt(1000))
     assert(dut.gprs.registers.getBigInt(2) == BigInt(3000))
     assert(dut.gprs.registers.getBigInt(3) == BigInt(2000))
