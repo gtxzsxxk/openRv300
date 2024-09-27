@@ -123,7 +123,7 @@ case class MemAccess() extends Component {
 
   io.dCacheMiss := False
 
-  io.answer.payload.assignDontCare()
+  io.answer.payload := ansPayload
 
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
@@ -139,9 +139,7 @@ case class MemAccess() extends Component {
       ansValid := False
       /* TODO: 处理地址越界，产生异常 */
       when(io.request.valid) {
-        io.answer.payload := ansPayload
         ansValid := True
-
         when(reqData.microOp === MicroOp.LOAD || reqData.microOp === MicroOp.STORE) {
           when(io.dCachePort.needStall) {
             fsmReqData := reqData
