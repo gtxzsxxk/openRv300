@@ -43,6 +43,7 @@ object CacheTest extends App {
     port.address #= 0
     port.isWrite #= false
     port.writeValue #= 0
+    port.writeMask #= 15
     port.valid #= true
 
     while (port.needStall.toBoolean) {
