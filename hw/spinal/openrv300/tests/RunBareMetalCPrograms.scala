@@ -15,10 +15,12 @@ object RunBareMetalCPrograms extends App {
   val tests = Seq(
     BareMetalCProgram("test1", dut => {
       assert(dut.gprs.registers.getBigInt(10) == BigInt(9))
-    })
     }),
     BareMetalCProgram("test2", dut => {
       assert(dut.gprs.registers.getBigInt(10) == BigInt(5050))
+    }),
+    BareMetalCProgram("test3", dut => {
+      assert(dut.gprs.registers.getBigInt(10) == BigInt(55))
     }),
   )
 
