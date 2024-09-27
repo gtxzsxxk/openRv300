@@ -17,7 +17,7 @@ case class InstExec() extends Component {
 
   val reqData = io.request.payload
   val ansPayload = Reg(ExecMemPayload())
-  val ansValid = Reg(Bool()) init(False)
+  val ansValid = Reg(Bool()) init (False)
   io.answer.valid := ansValid
 
   ansPayload.microOp := reqData.microOp
@@ -60,7 +60,7 @@ case class InstExec() extends Component {
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
-    if(!fakeNop) {
+    if (!fakeNop) {
       ansPayload.isNOP := True
       ansValid := False
     }
@@ -73,7 +73,7 @@ case class InstExec() extends Component {
   when(io.isStalling || !io.request.valid || ansPayload.takeJump) {
     /* 译出NOP */
     NOP()
-  } otherwise  {
+  } otherwise {
     switch(reqData.microOp) {
       is(MicroOp.LUI) {
         ansPayload.writeRegDest := True
@@ -250,7 +250,7 @@ case class InstExec() extends Component {
         insertBypass(true)
       }
       is(MicroOp.ECALL) {
-        NOP(microOp = MicroOp.ECALL)
+        NOP(fakeNop = true, microOp = MicroOp.ECALL)
       }
       default {
         /* TODO: illegal Inst. */
