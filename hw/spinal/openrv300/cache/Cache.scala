@@ -19,7 +19,11 @@ case class Cache(ways: Int) extends Component {
   def cacheGroupFlagBits: Int = widthOf(CacheLineFlags(ways))
 
   val cacheMemories = Mem(Bits(cacheGroupBits bits), wordCount = 64)
-  val cacheFlags = Mem(Bits(cacheGroupFlagBits bits), wordCount = 64) init (Seq.fill(64)(B(0, cacheGroupFlagBits bits)))
+  val cacheFlags = Reg(Vec.fill(64)(Bits(cacheGroupFlagBits bits)))
+
+  for(idx <- 0 until 64) {
+    cacheFlags(idx) init (B(0, cacheGroupFlagBits bits))
+  }
 
   def getCacheLine(way: UInt, index: UInt): (CacheLine, CacheLineFlags) = {
     val line = cacheMemories(index.resized).subdivideIn(ways slices)(way.resized).as(CacheLine())
@@ -124,7 +128,7 @@ case class Cache(ways: Int) extends Component {
           writeTmpCacheLineFlags := cacheLineFlags
           writeTmpCacheLineFlags.counterVec(whichWay) := cacheLineFlags.counterVec(whichWay) + 1
           cacheMemories.write(index, group)
-          cacheFlags.write(index, writeTmpCacheLineFlags.asBits)
+          cacheFlags(index) := writeTmpCacheLineFlags.asBits
           io.corePort.needStall := False
         } otherwise {
           /* cache miss */
@@ -275,7 +279,7 @@ case class Cache(ways: Int) extends Component {
             fsmTempLineFlags.validVec(whichWayToEvict) := True
             fsmTempLineFlags.dirtyVec(whichWayToEvict) := False
             fsmTempLineFlags.counterVec(whichWayToEvict) := U"64'd0"
-            cacheFlags.write(fsmIndex, fsmTempLineFlags.asBits)
+            cacheFlags(fsmIndex) := fsmTempLineFlags.asBits
             fsmNeedStall := False
             goto(cacheNormalWorking)
           }
