@@ -31,25 +31,17 @@ object RunBareMetalCPrograms extends App {
   val asmFilePath = "hw/spinal/openrv300/tests/bareMetalCPrograms"
   val diffTestEnabled = true
 
-  tests.foreach { tst =>
-    val binFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.cFile + ".bin").toString).toString
 
-    val makeCmd = s"make CROSS_COMPILE=$riscvToolchain- TEST_FILE=${tst.cFile} -C $asmFilePath"
-    makeCmd.!
-
-    val binaryData = Files.readAllBytes(Paths.get(binFullPath))
-
-    Config.sim.compile {
-      val core = OpenRv300SimTop()
-      core.ddr.simMemory.simPublic()
-      core.core.fetch.programCounter.simPublic()
-      core.core.gprs.registers.simPublic()
-      core.core.wb.reqData.simPublic()
-      core.core.wb.reqValid.simPublic()
-      core
-    }.doSim { dut =>
-      var cnt = 0
-
+  Config.sim.compile {
+    val core = OpenRv300SimTop()
+    core.ddr.simMemory.simPublic()
+    core.core.fetch.programCounter.simPublic()
+    core.core.gprs.registers.simPublic()
+    core.core.wb.reqData.simPublic()
+    core.core.wb.reqValid.simPublic()
+    core
+  }.doSim { dut =>
+    tests.foreach { tst =>
       if (diffTestEnabled) {
         temuReset()
       }
@@ -59,6 +51,14 @@ object RunBareMetalCPrograms extends App {
         dut.core.gprs.registers.setBigInt(idx, 0)
       }
 
+      val binFullPath = Paths.get(cwd, Paths.get(asmFilePath, tst.cFile + ".bin").toString).toString
+
+      val makeCmd = s"make CROSS_COMPILE=$riscvToolchain- TEST_FILE=${tst.cFile} -C $asmFilePath"
+      makeCmd.!
+
+      val binaryData = Files.readAllBytes(Paths.get(binFullPath))
+
+      var cnt = 0
       binaryData.grouped(4).foreach { bytes =>
         // 小端拼接，将 bytes(0) 放到最低位，bytes(3) 放到最高位
         val word = (bytes(0) & 0xFF) |
