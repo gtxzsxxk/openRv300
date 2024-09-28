@@ -57,7 +57,7 @@ case class InstDecode() extends Component {
   val reqData = FetchPayload()
   val reqDataValid = Bool()
   reqDataValid := False
-  val reqDataValidReg = RegNext(reqDataValid)
+  val reqDataValidReg = RegNext(reqDataValid) init(False)
   val takeJumpReg = RegNext(io.takeJump)
   val ansPayload = Reg(DecodePayload())
 
