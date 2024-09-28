@@ -29,6 +29,8 @@ case class InstDataCrossbar() extends Component {
     val transmitting = new State
 
     idle.onEntry(isTransmitting := False).whenIsActive {
+      isTransmitting := False
+
       when(iBusStart && !dBusStart) {
         arbiter := False
       } elsewhen (!iBusStart && dBusStart) {
@@ -38,11 +40,11 @@ case class InstDataCrossbar() extends Component {
       }
 
       when(iBusStart || dBusStart) {
+        isTransmitting := True
         goto(transmitting)
       }
       isWriting := False
       isReading := False
-      isTransmitting := False
     }
 
     transmitting.whenIsActive {
@@ -69,20 +71,20 @@ case class InstDataCrossbar() extends Component {
   }
 
   /* 处理 iBus 和 dBus 的 valid/ready */
-  io.iBus.aw.ready := io.coreBus.aw.ready && !arbiter
-  io.dBus.aw.ready := io.coreBus.aw.ready && arbiter
+  io.iBus.aw.ready := io.coreBus.aw.ready && !arbiter && isTransmitting
+  io.dBus.aw.ready := io.coreBus.aw.ready && arbiter && isTransmitting
 
-  io.iBus.ar.ready := io.coreBus.ar.ready && !arbiter
-  io.dBus.ar.ready := io.coreBus.ar.ready && arbiter
+  io.iBus.ar.ready := io.coreBus.ar.ready && !arbiter && isTransmitting
+  io.dBus.ar.ready := io.coreBus.ar.ready && arbiter && isTransmitting
 
-  io.iBus.w.ready := io.coreBus.w.ready && !arbiter
-  io.dBus.w.ready := io.coreBus.w.ready && arbiter
+  io.iBus.w.ready := io.coreBus.w.ready && !arbiter && isTransmitting
+  io.dBus.w.ready := io.coreBus.w.ready && arbiter && isTransmitting
 
-  io.iBus.r.valid := io.coreBus.r.valid && !arbiter
-  io.dBus.r.valid := io.coreBus.r.valid && arbiter
+  io.iBus.r.valid := io.coreBus.r.valid && !arbiter && isTransmitting
+  io.dBus.r.valid := io.coreBus.r.valid && arbiter && isTransmitting
 
-  io.iBus.b.valid := io.coreBus.b.valid && !arbiter
-  io.dBus.b.valid := io.coreBus.b.valid && arbiter
+  io.iBus.b.valid := io.coreBus.b.valid && !arbiter && isTransmitting
+  io.dBus.b.valid := io.coreBus.b.valid && arbiter && isTransmitting
 
   def reduceLatch(which: Axi4): Unit = {
     which.b.payload.assignDontCare()
