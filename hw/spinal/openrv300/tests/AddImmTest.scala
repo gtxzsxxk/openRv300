@@ -2,15 +2,15 @@ package openrv300.tests
 
 import spinal.core._
 import spinal.core.sim._
-import openrv300.{Config, OpenRv300}
+import openrv300.{Config, OpenRv300SimTop}
 
 object AddImmTest extends App {
   Config.sim.compile {
-    val core = OpenRv300()
-    core.ddr.simMemory.simPublic()
-    core.fetch.programCounter.simPublic()
-    core.gprs.registers.simPublic()
-    core
+    val simTop = OpenRv300SimTop()
+    simTop.ddr.simMemory.simPublic()
+    simTop.core.fetch.programCounter.simPublic()
+    simTop.core.gprs.registers.simPublic()
+    simTop
   }.doSim { dut =>
     /*
     * Test ADDI
@@ -44,13 +44,13 @@ object AddImmTest extends App {
       dut.clockDomain.waitRisingEdge()
     }
 
-    assert(dut.gprs.registers.getBigInt(1) == BigInt(1000))
-    assert(dut.gprs.registers.getBigInt(2) == BigInt(3000))
-    assert(dut.gprs.registers.getBigInt(3) == BigInt(2000))
-    assert(dut.gprs.registers.getBigInt(4) == BigInt(0))
-    assert(dut.gprs.registers.getBigInt(5) == BigInt(1000))
-    assert(dut.gprs.registers.getBigInt(6) == BigInt(555))
-    assert(dut.gprs.registers.getBigInt(7) == BigInt(666))
-    assert(dut.gprs.registers.getBigInt(8) == BigInt(777))
+    assert(dut.core.gprs.registers.getBigInt(1) == BigInt(1000))
+    assert(dut.core.gprs.registers.getBigInt(2) == BigInt(3000))
+    assert(dut.core.gprs.registers.getBigInt(3) == BigInt(2000))
+    assert(dut.core.gprs.registers.getBigInt(4) == BigInt(0))
+    assert(dut.core.gprs.registers.getBigInt(5) == BigInt(1000))
+    assert(dut.core.gprs.registers.getBigInt(6) == BigInt(555))
+    assert(dut.core.gprs.registers.getBigInt(7) == BigInt(666))
+    assert(dut.core.gprs.registers.getBigInt(8) == BigInt(777))
   }
 }

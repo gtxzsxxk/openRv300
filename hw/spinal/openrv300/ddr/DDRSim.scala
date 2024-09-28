@@ -23,6 +23,7 @@ case class DDRSim() extends Component {
   ar.setBlocked()
   r.setIdle()
 
+  /* 128 MiB */
   val simMemory = Mem(Bits(32 bits), wordCount = 0x02000000)
 
   val fsm = new StateMachine {

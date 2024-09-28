@@ -1,7 +1,7 @@
 package openrv300.tests
 
 import openrv300.Config.riscvToolchain
-import openrv300.{Config, OpenRv300}
+import openrv300.{Config, OpenRv300SimTop}
 import spinal.core._
 import spinal.core.sim._
 import utils.DiffTestUtils._
@@ -10,20 +10,20 @@ import java.nio.file.{Files, Paths}
 import scala.sys.process._
 
 object RunBareMetalCPrograms extends App {
-  case class BareMetalCProgram(cFile: String, verify: (OpenRv300) => Unit)
+  case class BareMetalCProgram(cFile: String, verify: (OpenRv300SimTop) => Unit)
 
   val tests = Seq(
     BareMetalCProgram("test1", dut => {
-      assert(dut.gprs.registers.getBigInt(10) == BigInt(9))
+      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(9))
     }),
     BareMetalCProgram("test2", dut => {
-      assert(dut.gprs.registers.getBigInt(10) == BigInt(5050))
+      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(5050))
     }),
     BareMetalCProgram("test3", dut => {
-      assert(dut.gprs.registers.getBigInt(10) == BigInt(55))
+      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(55))
     }),
     BareMetalCProgram("ieee754", dut => {
-      assert(dut.gprs.registers.getBigInt(10) == BigInt(125))
+      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(125))
     }),
   )
 
@@ -40,12 +40,12 @@ object RunBareMetalCPrograms extends App {
     val binaryData = Files.readAllBytes(Paths.get(binFullPath))
 
     Config.sim.compile {
-      val core = OpenRv300()
+      val core = OpenRv300SimTop()
       core.ddr.simMemory.simPublic()
-      core.fetch.programCounter.simPublic()
-      core.gprs.registers.simPublic()
-      core.wb.reqData.simPublic()
-      core.wb.reqValid.simPublic()
+      core.core.fetch.programCounter.simPublic()
+      core.core.gprs.registers.simPublic()
+      core.core.wb.reqData.simPublic()
+      core.core.wb.reqValid.simPublic()
       core
     }.doSim { dut =>
       var cnt = 0
@@ -56,7 +56,7 @@ object RunBareMetalCPrograms extends App {
 
       /* 寄存器全部设为0 */
       for (idx <- 0 until 32) {
-        dut.gprs.registers.setBigInt(idx, 0)
+        dut.core.gprs.registers.setBigInt(idx, 0)
       }
 
       binaryData.grouped(4).foreach { bytes =>
@@ -91,22 +91,22 @@ object RunBareMetalCPrograms extends App {
       var lastInst: BigInt = 0
       var lastInstPc: BigInt = 0
 
-      while (!(dut.wb.reqData.microOp.toInt == 19 && dut.wb.reqValid.toBoolean)) {
-        if (lastInstValid && diffTestEnabled && !dut.wb.reqData.isNOP.toBoolean && dut.wb.reqValid.toBoolean) {
+      while (!(dut.core.wb.reqData.microOp.toInt == 19 && dut.core.wb.reqValid.toBoolean)) {
+        if (lastInstValid && diffTestEnabled && !dut.core.wb.reqData.isNOP.toBoolean && dut.core.wb.reqValid.toBoolean) {
           lastInstValid = false;
           val regfile = Array.fill[BigInt](32)(0)
           for (idx <- 0 until 32) {
-            regfile(idx) = dut.gprs.registers.getBigInt(idx)
+            regfile(idx) = dut.core.gprs.registers.getBigInt(idx)
           }
 
-          assert(temuRunOneInstAndCompare(lastInst, lastInstPc, dut.wb.reqData.instPc.toBigInt, regfile))
+          assert(temuRunOneInstAndCompare(lastInst, lastInstPc, dut.core.wb.reqData.instPc.toBigInt, regfile))
         }
 
-        if (!dut.wb.reqData.isNOP.toBoolean && dut.wb.reqValid.toBoolean) {
+        if (!dut.core.wb.reqData.isNOP.toBoolean && dut.core.wb.reqValid.toBoolean) {
           retireCnt += 1
           lastInstValid = true
-          lastInst = dut.wb.reqData.instruction.toBigInt
-          lastInstPc = dut.wb.reqData.instPc.toBigInt
+          lastInst = dut.core.wb.reqData.instruction.toBigInt
+          lastInstPc = dut.core.wb.reqData.instPc.toBigInt
         }
 
         cycles += 1

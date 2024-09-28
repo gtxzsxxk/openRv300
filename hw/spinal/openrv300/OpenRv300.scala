@@ -23,9 +23,6 @@ case class OpenRv300() extends Component {
   io.bus.r.payload.setName("r")
   io.bus.b.payload.setName("b")
 
-  /* dummy device */
-  io.bus.setIdle()
-
   val fetch = InstFetch()
   val decode = InstDecode()
   val exec = InstExec()
@@ -37,7 +34,6 @@ case class OpenRv300() extends Component {
 
   val iCache = Cache(2)
   val dCache = Cache(2)
-  val ddr = DDRSim()
   val crossbar = InstDataCrossbar()
 
   fetch.io.answer <> decode.io.request
@@ -63,7 +59,7 @@ case class OpenRv300() extends Component {
   mem.io.dCachePort <> dCache.io.corePort
   crossbar.io.iBus <> iCache.io.memPort
   crossbar.io.dBus <> dCache.io.memPort
-  ddr.io.memPort <> crossbar.io.coreBus
+  io.bus <> crossbar.io.coreBus
 
   exec.io.isStalling := decode.io.waitForSrcReg || mem.io.dCacheMiss
 
