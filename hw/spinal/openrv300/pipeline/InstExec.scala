@@ -295,6 +295,8 @@ case class InstExec() extends Component {
         ansValid := True
         ansPayload := mulDivExec.io.answer.payload
         goto(normal)
+      } otherwise {
+        NOP()
       }
     }
   }
