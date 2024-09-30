@@ -41,7 +41,7 @@ case class InstDecode() extends Component {
   val reqData = FetchPayload()
   val reqDataValid = Bool()
   reqDataValid := False
-  val reqDataValidReg = RegNext(reqDataValid) init(False)
+  val reqDataValidReg = RegNext(reqDataValid) init (False)
   val takeJumpReg = RegNext(io.takeJump)
   val ansPayload = Reg(DecodePayload())
 
@@ -54,16 +54,20 @@ case class InstDecode() extends Component {
     reqData.instruction := B"32'h00000013"
     reqData.pcAddr := U"32'd0"
   } otherwise {
-    when(!io.waitForSrcReg) {
-      reqData := io.request.payload
-      reqDataValid := io.request.valid
-    } otherwise {
+    when(io.waitForSrcReg) {
       reqData := lastRequest
       reqDataValid := True
+    } otherwise {
+      reqDataValid := io.request.valid
+      reqData := io.request.payload
+      when(!reqDataValid && !reqDataValid) {
+        reqData.instruction := B"32'h00000013"
+        reqData.pcAddr := U"32'd0"
+      }
     }
   }
 
-//  ansPayload.microOp := B"7'd0"
+  //  ansPayload.microOp := B"7'd0"
   ansPayload.instPc := reqData.pcAddr
   ansPayload.instruction := reqData.instruction
   ansPayload.function0 := B"3'd0"
@@ -213,7 +217,7 @@ case class InstDecode() extends Component {
     is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
       RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
       RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU) {
-      when (reqData.instruction === RV32I.SLL) {
+      when(reqData.instruction === RV32I.SLL) {
         ansPayload.microOp := MicroOp.ARITH_SLL
       } elsewhen (reqData.instruction === RV32I.SRL) {
         ansPayload.microOp := MicroOp.ARITH_SRL
