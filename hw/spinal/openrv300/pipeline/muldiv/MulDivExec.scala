@@ -45,7 +45,7 @@ case class MulDivExec(pipelineStages: Int) extends Component {
     when(value(31)) {
       ret := (~value).asUInt + U"32'd1"
     } otherwise {
-      ret := value
+      ret := value.asUInt
     }
     ret
   }
@@ -58,6 +58,11 @@ case class MulDivExec(pipelineStages: Int) extends Component {
     value1 ^ value2
   }
 
+  io.answer.valid := False
+
+  multiplier.io.A := U"0".resized
+  multiplier.io.B := U"0".resized
+
   val fsm = new StateMachine {
     val waitCounter = Reg(UInt(3 bits))
     val outputSign = Reg(Bool())
@@ -67,13 +72,13 @@ case class MulDivExec(pipelineStages: Int) extends Component {
 
     idle.whenIsActive {
       when(io.request.valid) {
-        fsmRequest := io.request
+        fsmRequest := reqData
         /* 做乘法时全部转换为无符号数 */
         switch(reqData.function0) {
           is(B"000") {
             /* MUL */
-            multiplier.io.A := io.execRegisters(0).value
-            multiplier.io.B := io.execRegisters(1).value
+            multiplier.io.A := io.execRegisters(0).value.asUInt
+            multiplier.io.B := io.execRegisters(1).value.asUInt
             outputSign := False
           }
           is(B"001") {
@@ -85,21 +90,22 @@ case class MulDivExec(pipelineStages: Int) extends Component {
           is(B"010") {
             /* MULHSU */
             multiplier.io.A := signedToUnsigned(io.execRegisters(0).value)
-            multiplier.io.B := io.execRegisters(1).value
+            multiplier.io.B := io.execRegisters(1).value.asUInt
             outputSign := io.execRegisters(0).value(31)
           }
           is(B"011") {
             /* MULHU */
-            multiplier.io.A := io.execRegisters(0).value
-            multiplier.io.B := io.execRegisters(1).value
+            multiplier.io.A := io.execRegisters(0).value.asUInt
+            multiplier.io.B := io.execRegisters(1).value.asUInt
             outputSign := False
           }
           default {
-            multiplier.io.A := io.execRegisters(0)
-            multiplier.io.B := io.execRegisters(1)
+            /* TODO: illegal inst */
+            multiplier.io.A := io.execRegisters(0).value.asUInt
+            multiplier.io.B := io.execRegisters(1).value.asUInt
           }
         }
-        waitCounter := 3 - 1
+        waitCounter := pipelineStages - 1
         goto(working)
       }
       io.answer.valid := False
@@ -107,19 +113,29 @@ case class MulDivExec(pipelineStages: Int) extends Component {
 
     working.whenIsActive {
       io.answer.valid := False
+
+      ansPayload.microOp := fsmRequest.microOp
+      ansPayload.instPc := fsmRequest.instPc
+      ansPayload.instruction := fsmRequest.instruction
+      ansPayload.function0 := fsmRequest.function0
+      ansPayload.function1 := fsmRequest.function1
+      ansPayload.regDest := fsmRequest.regDest
+      ansPayload.imm := fsmRequest.imm
+      ansPayload.sextImm := fsmRequest.sextImm
+
       when(waitCounter === 0) {
         io.answer.valid := True
         switch(fsmRequest.function0) {
           is(B"000") {
             /* MUL */
-            ansPayload.regDestValue := multiplier.io.P(31 downto 0)
+            ansPayload.regDestValue := multiplier.io.P(31 downto 0).asBits
           }
           is(B"001", B"010", B"011") {
             /* MULH, MULHSU, MULHU */
             when(outputSign) {
-              ansPayload.regDestValue := unsignedToSigned(multiplier.io.P)(63 downto 32)
+              ansPayload.regDestValue := unsignedToSigned(multiplier.io.P)(63 downto 32).asBits
             } otherwise {
-              ansPayload.regDestValue := multiplier.io.P(63 downto 32)
+              ansPayload.regDestValue := multiplier.io.P(63 downto 32).asBits
             }
           }
         }
