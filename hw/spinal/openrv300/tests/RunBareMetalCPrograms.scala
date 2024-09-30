@@ -26,7 +26,7 @@ object RunBareMetalCPrograms extends App {
       assert(dut.core.gprs.registers.getBigInt(10) == BigInt(125))
     }),
     BareMetalCProgram("mul", dut => {
-      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(12))
+      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(518400))
     }),
   )
 
