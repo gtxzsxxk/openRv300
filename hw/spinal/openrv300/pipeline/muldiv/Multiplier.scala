@@ -7,9 +7,8 @@ case class Multiplier() extends BlackBox {
   val io = new Bundle {
     val A = in port UInt(32 bits)
     val B = in port UInt(32 bits)
-    val P = in port UInt(64 bits)
+    val P = out port UInt(64 bits)
   }
-  mapCurrentClockDomain(io.clk)
   noIoPrefix()
-  addRTLPath("multiplier_sim.v")
+  addRTLPath("hw/spinal/openrv300/pipeline/muldiv/sim/Multiplier.v")
 }
