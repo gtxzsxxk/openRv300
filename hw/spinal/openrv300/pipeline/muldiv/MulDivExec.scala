@@ -139,7 +139,7 @@ case class MulDivExec(pipelineStages: Int) extends Component {
             }
           }
         }
-        goto(working)
+        goto(idle)
       }
       waitCounter := waitCounter - 1
     }
