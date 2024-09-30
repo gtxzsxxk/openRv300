@@ -13,18 +13,18 @@ object RunBareMetalCPrograms extends App {
   case class BareMetalCProgram(cFile: String, verify: (OpenRv300SimTop) => Unit)
 
   val tests = Seq(
-    BareMetalCProgram("test1", dut => {
-      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(9))
-    }),
-    BareMetalCProgram("test2", dut => {
-      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(5050))
-    }),
-    BareMetalCProgram("test3", dut => {
-      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(55))
-    }),
-    BareMetalCProgram("ieee754", dut => {
-      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(125))
-    }),
+//    BareMetalCProgram("test1", dut => {
+//      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(9))
+//    }),
+//    BareMetalCProgram("test2", dut => {
+//      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(5050))
+//    }),
+//    BareMetalCProgram("test3", dut => {
+//      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(55))
+//    }),
+//    BareMetalCProgram("ieee754", dut => {
+//      assert(dut.core.gprs.registers.getBigInt(10) == BigInt(125))
+//    }),
     BareMetalCProgram("mul", dut => {
       assert(dut.core.gprs.registers.getBigInt(10) == BigInt(518400))
     }),

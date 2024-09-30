@@ -5,17 +5,20 @@ import spinal.lib._
 import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
 import openrv300.isa._
 import openrv300.pipeline.control.BypassReadPort
+import openrv300.pipeline.fifo.FetchBufferElement
 import openrv300.regfile.{GPRs, GPRsReadPort}
 
 case class InstDecode() extends Component {
   val io = new Bundle {
-    val request = slave(Flow(FetchPayload()))
+    val fetchBufferPop = out port Bool()
+    val fetchBufferHead = in port FetchBufferElement()
     val answer = master(Flow(DecodePayload()))
     val regReadPorts = Vec.fill(2)(master(GPRsReadPort()))
     val bypassReadPorts = Vec.fill(2)(master(BypassReadPort()))
     /* 纯组合逻辑 */
     val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
     val waitForSrcReg = out port Bool()
+    val execNeedStall = in port Bool()
     val takeJump = in port Bool()
   }
 
@@ -39,6 +42,8 @@ case class InstDecode() extends Component {
   }
 
   val reqData = FetchPayload()
+  reqData.pcAddr := 0
+  reqData.instruction := 0
   val reqDataValid = Bool()
   reqDataValid := False
   val reqDataValidReg = RegNext(reqDataValid) init (False)
@@ -46,24 +51,20 @@ case class InstDecode() extends Component {
   val ansPayload = Reg(DecodePayload())
 
   /* 流水线停顿重放 */
-  val justReset = Reg(Bool()) init (True)
-  val lastRequest = RegNext(io.request.payload)
-  /* 上一条指令译码后，源操作数全部满足，才开始本条指令译码，否则重放上条指令进行译码 */
-  when(justReset) {
-    justReset := False
-    reqData.instruction := B"32'h00000013"
-    reqData.pcAddr := U"32'd0"
+  val lastRequest = Reg(FetchPayload())
+  io.fetchBufferPop := False
+
+  when(io.waitForSrcReg || io.execNeedStall) {
+    io.fetchBufferPop := False
+    reqData := lastRequest
+    reqDataValid := True
   } otherwise {
-    when(io.waitForSrcReg) {
-      reqData := lastRequest
+    reqDataValid := False
+    when(io.fetchBufferHead.valid) {
+      io.fetchBufferPop := True
+      lastRequest := io.fetchBufferHead.payload
+      reqData := io.fetchBufferHead.payload
       reqDataValid := True
-    } otherwise {
-      reqDataValid := io.request.valid
-      reqData := io.request.payload
-      when(!reqDataValid && !reqDataValid) {
-        reqData.instruction := B"32'h00000013"
-        reqData.pcAddr := U"32'd0"
-      }
     }
   }
 
