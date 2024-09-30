@@ -38,22 +38,6 @@ case class InstDecode() extends Component {
     registerSourceGPRs(port) := bundle
   }
 
-  def NOP(microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
-    val tmpBundle = RegisterSourceBundle()
-    ansPayload.microOp := microOp
-    ansPayload.function0 := B"000"
-
-    ansPayload.regDest := U"5'd0"
-    ansPayload.imm := B"12'd0".resized
-
-    tmpBundle.which := U"5'd0"
-    tmpBundle.pending := False
-
-    /* 此时寄存器数据不会随着ans payload寄存，所以需要另开一个寄存器 */
-    /* 但是也不能直接覆盖到execRegisters上，否则会覆盖前一段的组合逻辑 */
-    registerSourceGPRs(0) := tmpBundle
-  }
-
   val reqData = FetchPayload()
   val reqDataValid = Bool()
   reqDataValid := False
@@ -79,7 +63,7 @@ case class InstDecode() extends Component {
     }
   }
 
-  ansPayload.microOp := B"7'd0"
+//  ansPayload.microOp := B"7'd0"
   ansPayload.instPc := reqData.pcAddr
   ansPayload.instruction := reqData.instruction
   ansPayload.function0 := B"3'd0"
@@ -87,6 +71,23 @@ case class InstDecode() extends Component {
   ansPayload.regDest := U"5'd0"
   ansPayload.imm := B"20'd0"
   ansPayload.sextImm := S"32'd0"
+
+  def NOP(microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
+    val tmpBundle = RegisterSourceBundle()
+    ansPayload.microOp := microOp
+    ansPayload.function0 := B"000"
+
+    ansPayload.regDest := U"5'd0"
+    ansPayload.imm := B"12'd0".resized
+
+    tmpBundle.which := U"5'd0"
+    tmpBundle.value := B"0".resized
+    tmpBundle.pending := False
+
+    /* 此时寄存器数据不会随着ans payload寄存，所以需要另开一个寄存器 */
+    /* 但是也不能直接覆盖到execRegisters上，否则会覆盖前一段的组合逻辑 */
+    registerSourceGPRs(0) := tmpBundle
+  }
 
   /* 从旁路读取寄存器数据，纯组合逻辑 */
   for (idx <- 0 until 2) {
@@ -133,7 +134,9 @@ case class InstDecode() extends Component {
     is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
       checkStall(0)
     }
-    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU, RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND) {
+    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
+      RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
+      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU) {
       checkStall(0)
       checkStall(1)
     }
@@ -207,15 +210,17 @@ case class InstDecode() extends Component {
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
       ansPayload.imm := reqData.instruction(24 downto 20).resized
     }
-    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU, RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND) {
-      when(reqData.instruction =/= RV32I.SLL && reqData.instruction =/= RV32I.SRL && reqData.instruction =/= RV32I.SRA) {
-        ansPayload.microOp := MicroOp.ARITH_BINARY
-      } elsewhen (reqData.instruction === RV32I.SLL) {
+    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
+      RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
+      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU) {
+      when (reqData.instruction === RV32I.SLL) {
         ansPayload.microOp := MicroOp.ARITH_SLL
       } elsewhen (reqData.instruction === RV32I.SRL) {
         ansPayload.microOp := MicroOp.ARITH_SRL
       } elsewhen (reqData.instruction === RV32I.SRA) {
         ansPayload.microOp := MicroOp.ARITH_SRA
+      } otherwise {
+        ansPayload.microOp := MicroOp.ARITH_BINARY
       }
 
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
@@ -223,7 +228,7 @@ case class InstDecode() extends Component {
       genRegSourceBundle(reqData.instruction, 24, 20, 1)
 
       ansPayload.function0 := reqData.instruction(14 downto 12)
-      ansPayload.function1 := reqData.instruction(30).asBits.resized
+      ansPayload.function1 := reqData.instruction(31 downto 25)
     }
     is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
       /* decode as nop */
