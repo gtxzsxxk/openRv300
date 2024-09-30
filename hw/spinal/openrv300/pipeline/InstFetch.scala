@@ -10,9 +10,15 @@ import payload.{ExecMemPayload, FetchPayload}
 case class InstFetch() extends Component {
   val io = new Bundle {
     val needReplay = in port Bool()
+
     val memAnswer = slave(Flow(ExecMemPayload()))
     val dCacheMiss = in port Bool()
+
+    val execAnswer = slave(Flow(ExecMemPayload()))
+    val execNeedStall = in port Bool()
+
     val iCachePort = master(CacheCorePort())
+
     val takeJump = in port Bool()
     val jumpAddress = in port UInt(32 bits)
 
@@ -41,6 +47,7 @@ case class InstFetch() extends Component {
     val normalWorking = new State with EntryPoint
     val iCacheMiss = new State
     val dCacheMiss = new State
+    val execStall = new State
 
     normalWorking.whenIsActive {
       when(io.takeJump) {
@@ -49,6 +56,9 @@ case class InstFetch() extends Component {
       } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
         goto(iCacheMiss)
+      } elsewhen(io.execNeedStall) {
+        fetchValid := False
+        goto(execStall)
       } otherwise {
         /* 遇到源寄存器不满足，需要重放 */
         when(io.needReplay && (!justReset)) {
@@ -109,6 +119,14 @@ case class InstFetch() extends Component {
         io.iCachePort.address := io.memAnswer.payload.instPc + 4
 
         programCounter := io.memAnswer.payload.instPc + 4 + 4
+        goto(normalWorking)
+      }
+    }
+
+    execStall.whenIsActive {
+      fetchValid := False
+      when(!io.execNeedStall) {
+        programCounter := io.execAnswer.payload.instPc + 4
         goto(normalWorking)
       }
     }
