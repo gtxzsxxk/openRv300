@@ -293,7 +293,6 @@ case class InstExec() extends Component {
       io.execNeedStall := True
       when(mulDivExec.io.answer.valid) {
         ansValid := True
-        io.execNeedStall := False
         ansPayload := mulDivExec.io.answer.payload
         goto(normal)
       }
