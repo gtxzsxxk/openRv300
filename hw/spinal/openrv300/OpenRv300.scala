@@ -31,6 +31,7 @@ case class OpenRv300() extends Component {
 
   val gprs = GPRs()
   val bypassUnit = BypassUnit()
+  val fetchBuffer = FetchBuffer(2)
 
   val iCache = Cache(2)
   val dCache = Cache(2)
