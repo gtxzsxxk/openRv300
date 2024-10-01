@@ -6,6 +6,7 @@ import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
 import payload.{ExecMemPayload, FetchPayload}
+import fifo.FetchBufferElement
 
 case class InstFetch() extends Component {
   val io = new Bundle {
@@ -22,7 +23,9 @@ case class InstFetch() extends Component {
     val takeJump = in port Bool()
     val jumpAddress = in port UInt(32 bits)
 
-    val answer = master(Flow(FetchPayload()))
+    val fetchBufferPushData = out port FetchPayload()
+    val fetchBufferPushValid = out port Bool()
+    val fetchBufferHead = in port FetchBufferElement()
   }
 
   val programCounter = RegInit(startAddress)
@@ -33,15 +36,17 @@ case class InstFetch() extends Component {
   io.iCachePort.writeValue := B"32'd0"
   io.iCachePort.writeMask := B"4'd0"
 
-  val ansPayload = Reg(FetchPayload())
-  io.answer.payload := ansPayload
+  val ansPayload = FetchPayload()
+  ansPayload.pcAddr := 0
+  ansPayload.instruction := 0
+  io.fetchBufferPushData := ansPayload
 
   val justReset = Reg(Bool()) init (True)
 
   val dCacheMissed = RegNext(io.dCacheMiss)
-  val fetchValid = Reg(Bool())
+  val fetchValid = Bool()
   fetchValid := False
-  io.answer.valid := fetchValid
+  io.fetchBufferPushValid := fetchValid
 
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
@@ -56,18 +61,18 @@ case class InstFetch() extends Component {
       } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
         goto(iCacheMiss)
-      } elsewhen(io.execNeedStall) {
+      } elsewhen (io.execNeedStall) {
         fetchValid := False
         goto(execStall)
       } otherwise {
         /* 遇到源寄存器不满足，需要重放 */
         when(io.needReplay && (!justReset)) {
-          ansPayload.pcAddr := ansPayload.pcAddr
-          ansPayload.instruction := ansPayload.instruction
+          when(io.fetchBufferHead.valid) {
+            ansPayload := io.fetchBufferHead.payload
+            programCounter := io.fetchBufferHead.payload.pcAddr + 4
 
-          programCounter := ansPayload.pcAddr + 4
-
-          fetchValid := True
+            fetchValid := True
+          }
         } otherwise {
           justReset := False
 
@@ -95,7 +100,7 @@ case class InstFetch() extends Component {
         programCounter := io.jumpAddress
         fetchValid := False
       }
-      when (!io.iCachePort.needStall) {
+      when(!io.iCachePort.needStall) {
         fetchValid := True
 
         ansPayload.pcAddr := programCounter

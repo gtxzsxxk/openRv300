@@ -9,6 +9,7 @@ import pipeline.control.BypassUnit
 import cache._
 import ddr._
 import Config.axiConfig
+import openrv300.pipeline.fifo.FetchBuffer
 
 case class OpenRv300() extends Component {
   val io = new Bundle {
@@ -38,7 +39,11 @@ case class OpenRv300() extends Component {
   val crossbar = InstDataCrossbar()
 
   /* 连接流水级 */
-  fetch.io.answer <> decode.io.request
+  fetchBuffer.io.pushValid := fetch.io.fetchBufferPushValid
+  fetchBuffer.io.pushData := fetch.io.fetchBufferPushData
+  fetchBuffer.io.pop := decode.io.fetchBufferPop
+  fetch.io.fetchBufferHead := fetchBuffer.io.head
+  decode.io.fetchBufferHead := fetchBuffer.io.head
   decode.io.answer <> exec.io.request
   exec.io.answer <> mem.io.request
   mem.io.answer <> wb.io.request
@@ -64,6 +69,7 @@ case class OpenRv300() extends Component {
   /* exec 执行需要多个周期才能完成的指令时，停止取指 */
   fetch.io.execNeedStall := exec.io.execNeedStall
   fetch.io.execAnswer := exec.io.answer
+  decode.io.execNeedStall := exec.io.execNeedStall
 
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort
