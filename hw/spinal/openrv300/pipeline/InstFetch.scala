@@ -131,7 +131,6 @@ case class InstFetch() extends Component {
     execStall.whenIsActive {
       fetchValid := False
       when(!io.execNeedStall) {
-        programCounter := io.execAnswer.payload.instPc + 4
         goto(normalWorking)
       }
     }
