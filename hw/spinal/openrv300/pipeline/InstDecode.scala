@@ -149,7 +149,8 @@ case class InstDecode() extends Component {
     }
     is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
       RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
-      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU) {
+      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU,
+      RV32M.DIV, RV32M.DIVU, RV32M.REM, RV32M.REMU) {
       checkStall(0)
       checkStall(1)
     }
@@ -225,7 +226,8 @@ case class InstDecode() extends Component {
     }
     is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
       RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
-      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU) {
+      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU,
+      RV32M.DIV, RV32M.DIVU, RV32M.REM, RV32M.REMU) {
       when(reqData.instruction === RV32I.SLL) {
         ansPayload.microOp := MicroOp.ARITH_SLL
       } elsewhen (reqData.instruction === RV32I.SRL) {
