@@ -141,6 +141,10 @@ case class InstDecode() extends Component {
     is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
       checkStall(0)
     }
+    is(RV32I.SB, RV32I.SH, RV32I.SW) {
+      checkStall(0)
+      checkStall(1)
+    }
     is(RV32I.ADDI, RV32I.SLTI, RV32I.SLTIU, RV32I.XORI, RV32I.ORI, RV32I.ANDI) {
       checkStall(0)
     }
