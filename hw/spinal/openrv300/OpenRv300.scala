@@ -70,6 +70,7 @@ case class OpenRv300() extends Component {
   fetch.io.execNeedStall := exec.io.execNeedStall
   fetch.io.execAnswer := exec.io.answer
   decode.io.execNeedStall := exec.io.execNeedStall
+  decode.io.execNeedStallInst := exec.io.execNeedStallInst
 
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort

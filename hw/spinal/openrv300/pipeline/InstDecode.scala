@@ -19,6 +19,7 @@ case class InstDecode() extends Component {
     val execRegisters = out port Vec.fill(2)(RegisterSourceBundle())
     val waitForSrcReg = out port Bool()
     val execNeedStall = in port Bool()
+    val execNeedStallInst = in port Bits(32 bits)
     val takeJump = in port Bool()
   }
 
@@ -55,7 +56,7 @@ case class InstDecode() extends Component {
   val needRedoLastRequest = Reg(Bool())
   io.fetchBufferPop := False
 
-  when(io.execNeedStall) {
+  when(io.execNeedStall && io.execNeedStallInst =/= lastRequest.instruction) {
     reqDataValid := False
     /* fetchBuffer 中的数据已经被pop了，因此暂存在lastRequest中 */
     needRedoLastRequest := True

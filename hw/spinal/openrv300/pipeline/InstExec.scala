@@ -17,6 +17,7 @@ case class InstExec() extends Component {
     val isStalling = in port Bool()
 
     val execNeedStall = out port Bool()
+    val execNeedStallInst = out port Bits(32 bits)
   }
 
   val reqData = io.request.payload
@@ -80,10 +81,12 @@ case class InstExec() extends Component {
   ansValid := False
 
   io.execNeedStall := False
+  io.execNeedStallInst := 0
 
   val fsm = new StateMachine {
     val normal = new State with EntryPoint
     val waitForMulDivExec = new State
+    val stallInst = Reg(Bits(32 bits))
 
     normal.whenIsActive {
       when(io.isStalling || !io.request.valid || ansPayload.takeJump) {
@@ -255,6 +258,7 @@ case class InstExec() extends Component {
                 /* 乘法 */
                 ansValid := False
                 mulDivExec.io.request.valid := True
+                stallInst := reqData.instruction
                 goto(waitForMulDivExec)
               }
               default {
@@ -291,6 +295,7 @@ case class InstExec() extends Component {
     waitForMulDivExec.whenIsActive {
       ansValid := False
       io.execNeedStall := True
+      io.execNeedStallInst := stallInst
       when(mulDivExec.io.answer.valid) {
         ansValid := True
         ansPayload := mulDivExec.io.answer.payload
