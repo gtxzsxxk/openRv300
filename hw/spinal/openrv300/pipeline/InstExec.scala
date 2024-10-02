@@ -255,7 +255,7 @@ case class InstExec() extends Component {
                 }
               }
               is(B"0000001") {
-                /* 乘法 */
+                /* 乘除法 */
                 ansValid := False
                 mulDivExec.io.request.valid := True
                 stallInst := reqData.instruction

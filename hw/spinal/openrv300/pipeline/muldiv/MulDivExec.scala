@@ -72,6 +72,9 @@ case class MulDivExec(pipelineStages: Int) extends Component {
     val waitCounter = Reg(UInt(3 bits))
     val isDivRem = Reg(Bool())
     val isRem = Reg(Bool())
+    val illegal = Reg(Bool())
+    val illegalOutput = Reg(Bits(32 bits))
+
     val outputSign = Reg(Bool())
     val fsmRequest = Reg(DecodePayload())
     val idle = new State with EntryPoint
@@ -81,6 +84,7 @@ case class MulDivExec(pipelineStages: Int) extends Component {
       when(io.request.valid) {
         fsmRequest := reqData
         isRem := False
+        illegal := False
         /* 做乘法时全部转换为无符号数 */
         switch(reqData.function0) {
           is(B"000") {
@@ -113,10 +117,27 @@ case class MulDivExec(pipelineStages: Int) extends Component {
           }
           is(B"100", B"110") {
             /* DIV, REM */
-            divider.io.s_axis_dividend_tdata := signedToUnsigned(io.execRegisters(0).value)
-            divider.io.s_axis_divisor_tdata := signedToUnsigned(io.execRegisters(1).value)
-            divider.io.s_axis_dividend_tvalid := True
-            divider.io.s_axis_divisor_tvalid := True
+            when(io.execRegisters(1).value === 0) {
+              illegal := True
+              illegalOutput := B"32'hFFFF_FFFF"
+              when(reqData.function0 === B"110") {
+                /* REM */
+                illegalOutput := io.execRegisters(0).value
+              }
+            } elsewhen (io.execRegisters(0).value === B"32'h8000_0000" && io.execRegisters(1).value === B"32'hFFFF_FFFF") {
+              illegal := True
+              illegalOutput := B"32'h8000_0000"
+              when(reqData.function0 === B"110") {
+                /* REM */
+                illegalOutput := 0
+              }
+            } otherwise {
+              divider.io.s_axis_dividend_tdata := signedToUnsigned(io.execRegisters(0).value)
+              divider.io.s_axis_divisor_tdata := signedToUnsigned(io.execRegisters(1).value)
+              divider.io.s_axis_dividend_tvalid := True
+              divider.io.s_axis_divisor_tvalid := True
+            }
+
             outputSign := getOutputSign(io.execRegisters(0).value(31), io.execRegisters(1).value(31))
             isDivRem := True
             when(reqData.function0 === B"110") {
@@ -126,10 +147,20 @@ case class MulDivExec(pipelineStages: Int) extends Component {
           }
           is(B"101", B"111") {
             /* DIVU, REMU */
-            divider.io.s_axis_dividend_tdata := io.execRegisters(0).value.asUInt
-            divider.io.s_axis_divisor_tdata := io.execRegisters(1).value.asUInt
-            divider.io.s_axis_dividend_tvalid := True
-            divider.io.s_axis_divisor_tvalid := True
+            when(io.execRegisters(1).value === 0) {
+              illegal := True
+              illegalOutput := B"32'hFFFF_FFFF"
+              when(reqData.function0 === B"111") {
+                /* REMU */
+                illegalOutput := io.execRegisters(0).value
+              }
+            } otherwise {
+              divider.io.s_axis_dividend_tdata := io.execRegisters(0).value.asUInt
+              divider.io.s_axis_divisor_tdata := io.execRegisters(1).value.asUInt
+              divider.io.s_axis_dividend_tvalid := True
+              divider.io.s_axis_divisor_tvalid := True
+            }
+
             outputSign := False
             isDivRem := True
             when(reqData.function0 === B"111") {
@@ -176,22 +207,28 @@ case class MulDivExec(pipelineStages: Int) extends Component {
         }
         waitCounter := waitCounter - 1
       } otherwise {
-        when(divider.io.m_axis_dout_tvalid) {
-          when(!isRem) {
-            when(outputSign) {
-              ansPayload.regDestValue := unsignedToSigned(divider.io.m_axis_dout_tdata)(63 downto 32).asBits
-            } otherwise {
-              ansPayload.regDestValue := divider.io.m_axis_dout_tdata(63 downto 32).asBits
-            }
-          } otherwise {
-            when(outputSign) {
-              ansPayload.regDestValue := unsignedToSigned(divider.io.m_axis_dout_tdata)(31 downto 0).asBits
-            } otherwise {
-              ansPayload.regDestValue := divider.io.m_axis_dout_tdata(31 downto 0).asBits
-            }
-          }
+        when(illegal) {
+          ansPayload.regDestValue := illegalOutput
           io.answer.valid := True
           goto(idle)
+        } otherwise {
+          when(divider.io.m_axis_dout_tvalid) {
+            when(!isRem) {
+              when(outputSign) {
+                ansPayload.regDestValue := unsignedToSigned(divider.io.m_axis_dout_tdata)(63 downto 32).asBits
+              } otherwise {
+                ansPayload.regDestValue := divider.io.m_axis_dout_tdata(63 downto 32).asBits
+              }
+            } otherwise {
+              when(outputSign) {
+                ansPayload.regDestValue := unsignedToSigned(divider.io.m_axis_dout_tdata)(31 downto 0).asBits
+              } otherwise {
+                ansPayload.regDestValue := divider.io.m_axis_dout_tdata(31 downto 0).asBits
+              }
+            }
+            io.answer.valid := True
+            goto(idle)
+          }
         }
       }
     }

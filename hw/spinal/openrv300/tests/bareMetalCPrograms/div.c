@@ -14,5 +14,28 @@ int main() {
 		b1 = r;
 	}
 
+    int neg = -1;
+	int overflow = (1 << 31);
+	overflow = - overflow;
+	overflow /= neg;
+	if((unsigned int) overflow != 0x80000000) {
+	    return 0;
+	}
+	overflow = (1 << 31);
+	overflow = - overflow;
+	overflow %= neg;
+	if(overflow != 0) {
+	    return 2;
+	}
+
+	int div_by_zero = 3 / 0;
+	if(div_by_zero != -1) {
+	    return 1;
+	}
+	div_by_zero = 3 % 0;
+	if(div_by_zero != 3) {
+	    return 3;
+	}
+
     return a1; /* 8 */
 }
