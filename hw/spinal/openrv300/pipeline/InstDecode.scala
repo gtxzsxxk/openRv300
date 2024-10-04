@@ -262,7 +262,7 @@ case class InstDecode() extends Component {
       NOP(MicroOp.ECALL)
     }
     is(ZICSR_ZIFENCEI.CSRRW, ZICSR_ZIFENCEI.CSRRS, ZICSR_ZIFENCEI.CSRRC) {
-      ansPayload.microOp := MicroOp.CSR_BINARY
+      ansPayload.microOp := MicroOp.CSR
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
 
       genRegSourceBundle(reqData.instruction, 19, 15, 0)
@@ -272,7 +272,7 @@ case class InstDecode() extends Component {
       ansPayload.imm := reqData.instruction(31 downto 20).resized
     }
     is(ZICSR_ZIFENCEI.CSRRWI, ZICSR_ZIFENCEI.CSRRSI, ZICSR_ZIFENCEI.CSRRCI) {
-      ansPayload.microOp := MicroOp.CSR_IMM
+      ansPayload.microOp := MicroOp.CSR
       ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
 
       ansPayload.function0 := reqData.instruction(14 downto 12)
