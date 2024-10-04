@@ -159,6 +159,9 @@ case class InstDecode() extends Component {
       checkStall(0)
       checkStall(1)
     }
+    is(ZICSR_ZIFENCEI.CSRRW, ZICSR_ZIFENCEI.CSRRS, ZICSR_ZIFENCEI.CSRRC) {
+      checkStall(0)
+    }
   }
 
   switch(reqData.instruction) {
@@ -257,6 +260,25 @@ case class InstDecode() extends Component {
     is(RV32I.ECALL) {
       /* TODO: raise an exception */
       NOP(MicroOp.ECALL)
+    }
+    is(ZICSR_ZIFENCEI.CSRRW, ZICSR_ZIFENCEI.CSRRS, ZICSR_ZIFENCEI.CSRRC) {
+      ansPayload.microOp := MicroOp.CSR_BINARY
+      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+
+      genRegSourceBundle(reqData.instruction, 19, 15, 0)
+
+      ansPayload.function0 := reqData.instruction(14 downto 12)
+      /* CSR 地址 */
+      ansPayload.imm := reqData.instruction(31 downto 20).resized
+    }
+    is(ZICSR_ZIFENCEI.CSRRWI, ZICSR_ZIFENCEI.CSRRSI, ZICSR_ZIFENCEI.CSRRCI) {
+      ansPayload.microOp := MicroOp.CSR_IMM
+      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+
+      ansPayload.function0 := reqData.instruction(14 downto 12)
+      /* CSR 的立即数 UIMM */
+      ansPayload.function1 := reqData.instruction(19 downto 15).resized
+      ansPayload.imm := reqData.instruction(31 downto 20).resized
     }
     default {
       /* TODO: raise an exception */
