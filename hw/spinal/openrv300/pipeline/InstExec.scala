@@ -285,6 +285,11 @@ case class InstExec() extends Component {
           is(MicroOp.ECALL) {
             NOP(fakeNop = true, microOp = MicroOp.ECALL)
           }
+          is(MicroOp.CSR) {
+            ansPayload.writeRegDest := True
+
+            insertBypass(false)
+          }
           default {
             /* TODO: illegal Inst. */
           }
