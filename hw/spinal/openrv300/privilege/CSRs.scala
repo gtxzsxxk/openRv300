@@ -4,6 +4,12 @@ import spinal.core._
 import spinal.lib._
 
 case class CSRs() extends Component {
+  val io = new Bundle {
+    val port = slave(CSRPort())
+  }
+
+  io.port.readData := 0
+
   object CSRReadWrite extends SpinalEnum {
     val readOnly, readWrite = newElement()
   }
@@ -55,4 +61,54 @@ case class CSRs() extends Component {
     U"12'hC80" -> (PrivilegeLevels.user, CSRReadWrite.readOnly) -> "cycleh",
     U"12'hC81" -> (PrivilegeLevels.user, CSRReadWrite.readOnly) -> "timeh",
   )
+
+  def getCsrIndexByName(name: String): Int = {
+    var index = -1
+    for (idx <- csrListings.indices) {
+      if (csrListings(idx)._2 == name) {
+        index = idx
+      }
+    }
+    index
+  }
+
+  val csrEntities = Vec.fill(csrListings.size)(Reg(Bits(32 bits)))
+
+  /* 复位后的初值 */
+  csrEntities(getCsrIndexByName("mvendorid")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("mhartid")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("cycle")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("cycleh")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("time")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("timeh")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("stimecmp")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("stimecmph")) init (B"32'h0")
+
+  when(io.port.valid) {
+    switch(io.port.address) {
+      for (idx <- csrListings.indices) {
+        is(csrListings(idx)._1._1) {
+          when(csrListings(idx)._1._2._1.asBits.asUInt > privilegeLevel.asUInt) {
+            /* TODO: 权限不够，产生异常 */
+          } otherwise {
+            when(io.port.withWrite && csrListings(idx)._1._2._2 === CSRReadWrite.readOnly) {
+              /* TODO: 只能读，产生异常 */
+            } otherwise {
+              when(io.port.withWrite) {
+                csrEntities(idx) := io.port.writeData
+                /* TODO: 写的副作用 */
+              }
+              when(!io.port.noRead) {
+                /* TODO: 读的副作用，但是标准的 CSR 没有读的副作用 */
+                io.port.readData := csrEntities(idx)
+              }
+            }
+          }
+        }
+      }
+      default {
+        /* TODO: exception */
+      }
+    }
+  }
 }
