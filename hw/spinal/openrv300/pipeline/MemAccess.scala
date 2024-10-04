@@ -4,6 +4,7 @@ import openrv300.cache.CacheCorePort
 import openrv300.isa.MicroOp
 import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload._
+import openrv300.privilege.CSRPort
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
@@ -15,6 +16,8 @@ case class MemAccess() extends Component {
     val bypassWritePort = master(BypassWritePort())
     val dCachePort = master(CacheCorePort())
     val dCacheMiss = out port Bool()
+
+    val csrPort = master(CSRPort())
   }
 
   val reqData = io.request.payload
@@ -36,6 +39,12 @@ case class MemAccess() extends Component {
   bypassWPort.whichReg := U"5'd0"
   bypassWPort.finished := bypassValueReady
   bypassWPort.regValue := B"32'd0"
+
+  io.csrPort.address := 0
+  io.csrPort.writeData := 0
+  io.csrPort.withWrite := False
+  io.csrPort.noRead := False
+  io.csrPort.valid := False
 
   def insertBypass(solvedThisStage: Boolean): Unit = {
     bypassWPort.whichReg := ansPayload.regDest
@@ -140,14 +149,72 @@ case class MemAccess() extends Component {
       /* TODO: 处理地址越界，产生异常 */
       when(io.request.valid) {
         ansValid := True
-        when(reqData.microOp === MicroOp.LOAD || reqData.microOp === MicroOp.STORE) {
-          when(io.dCachePort.needStall) {
-            fsmReqData := reqData
-            io.dCacheMiss := True
-            ansValid := False
-            goto(cacheMiss)
+        switch(reqData.microOp) {
+          is(MicroOp.LOAD, MicroOp.STORE) {
+            when(io.dCachePort.needStall) {
+              fsmReqData := reqData
+              io.dCacheMiss := True
+              ansValid := False
+              goto(cacheMiss)
+            }
+            doLoadStore(reqData)
           }
-          doLoadStore(reqData)
+          is(MicroOp.CSR) {
+            io.csrPort.valid := True
+            io.csrPort.address := reqData.imm(11 downto 0).asUInt
+            switch(reqData.function0) {
+              is(B"001") {
+                /* CSRRW */
+                when(reqData.regDest === 0) {
+                  io.csrPort.noRead := True
+                }
+                io.csrPort.withWrite := True
+                io.csrPort.writeData := reqData.registerSources(0).value
+                ansPayload.regDestValue := io.csrPort.readData
+              }
+              is(B"010") {
+                /* CSRRS */
+                ansPayload.regDestValue := io.csrPort.readData
+                io.csrPort.writeData := io.csrPort.readData | reqData.registerSources(0).value
+                when(reqData.registerSources(0).which =/= 0) {
+                  io.csrPort.withWrite := True
+                }
+              }
+              is(B"011") {
+                /* CSRRC */
+                ansPayload.regDestValue := io.csrPort.readData
+                io.csrPort.writeData := io.csrPort.readData & (~reqData.registerSources(0).value)
+                when(reqData.registerSources(0).which =/= 0) {
+                  io.csrPort.withWrite := True
+                }
+              }
+              is(B"101") {
+                /* CSRRWI */
+                when(reqData.regDest === 0) {
+                  io.csrPort.noRead := True
+                }
+                io.csrPort.withWrite := True
+                io.csrPort.writeData := reqData.function1.resized
+                ansPayload.regDestValue := io.csrPort.readData
+              }
+              is(B"110") {
+                /* CSRRSI */
+                ansPayload.regDestValue := io.csrPort.readData
+                io.csrPort.writeData := io.csrPort.readData | reqData.function1.resize(32)
+                when(reqData.function1 =/= 0) {
+                  io.csrPort.withWrite := True
+                }
+              }
+              is(B"111") {
+                /* CSRRCI */
+                ansPayload.regDestValue := io.csrPort.readData
+                io.csrPort.writeData := io.csrPort.readData & (~reqData.function1.resize(32))
+                when(reqData.function1 =/= 0) {
+                  io.csrPort.withWrite := True
+                }
+              }
+            }
+          }
         }
       }
     }
