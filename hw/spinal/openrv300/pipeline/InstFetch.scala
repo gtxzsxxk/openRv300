@@ -7,6 +7,8 @@ import spinal.lib._
 import spinal.lib.fsm._
 import payload.{ExecMemPayload, FetchPayload}
 import fifo.FetchBufferElement
+import openrv300.isa.ExceptionCode
+import openrv300.privilege.{DoTrapInformation, ThrowTrapInformation}
 
 case class InstFetch() extends Component {
   val io = new Bundle {
@@ -25,9 +27,18 @@ case class InstFetch() extends Component {
     val fetchBufferPushData = out port FetchPayload()
     val fetchBufferPushValid = out port Bool()
     val fetchBufferHead = in port FetchBufferElement()
+
+    val doTrapInfo = slave(DoTrapInformation())
+    val throwTrapPort = master(ThrowTrapInformation())
   }
 
   val programCounter = RegInit(startAddress)
+
+  io.throwTrapPort.throwTrap := False
+  io.throwTrapPort.trapCause := 0
+  io.throwTrapPort.trapPc := 0
+  io.throwTrapPort.trapValue := 0
+  io.throwTrapPort.fromWhichStage := 0
 
   io.iCachePort.valid := True
   io.iCachePort.address := programCounter
@@ -48,10 +59,12 @@ case class InstFetch() extends Component {
   io.fetchBufferPushValid := fetchValid
 
   val fsm = new StateMachine {
+    val exceptionCode = Reg(UInt(12 bits))
     val normalWorking = new State with EntryPoint
     val iCacheMiss = new State
     val dCacheMiss = new State
     val execStall = new State
+    val throwException = new State
 
     normalWorking.whenIsActive {
       when(io.takeJump) {
@@ -82,9 +95,15 @@ case class InstFetch() extends Component {
             ansPayload.instruction := io.iCachePort.readValue
             ansPayload.pcAddr := programCounter
 
-            programCounter := programCounter + 4
-
-            fetchValid := True
+            when(programCounter(1 downto 0) === 0) {
+              programCounter := programCounter + 4
+              fetchValid := True
+            } otherwise {
+              /* 非对齐 */
+              exceptionCode := ExceptionCode.InstAddrMisaligned
+              fetchValid := False
+              goto(throwException)
+            }
           } otherwise {
             fetchValid := False
             goto(dCacheMiss)
@@ -130,6 +149,19 @@ case class InstFetch() extends Component {
     execStall.whenIsActive {
       fetchValid := False
       when(!io.execNeedStall) {
+        goto(normalWorking)
+      }
+    }
+
+    throwException.whenIsActive {
+      io.throwTrapPort.throwTrap := True
+      io.throwTrapPort.trapCause := exceptionCode
+      io.throwTrapPort.trapPc := programCounter
+      io.throwTrapPort.trapValue := programCounter
+
+      when(io.doTrapInfo.trapValid) {
+        io.doTrapInfo.trapReady := True
+        programCounter := io.doTrapInfo.trapJumpAddress
         goto(normalWorking)
       }
     }
