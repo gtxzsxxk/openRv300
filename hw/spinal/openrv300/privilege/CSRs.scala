@@ -6,6 +6,9 @@ import spinal.lib._
 case class CSRs() extends Component {
   val io = new Bundle {
     val port = slave(CSRPort())
+    val doTrapInfo = master(DoTrapInformation())
+    val throwTrapPorts = Vec.fill(1)(slave(ThrowTrapInformation()))
+
   }
 
   io.port.readData := 0
@@ -110,5 +113,72 @@ case class CSRs() extends Component {
         /* TODO: exception */
       }
     }
+  }
+
+  /* 进入异常 */
+  val trapJumpAddress = Reg(UInt(32 bits))
+  val trapValid = Reg(Bool()) init (False)
+  io.doTrapInfo.trapJumpAddress := trapJumpAddress
+  io.doTrapInfo.trapValid := trapValid
+
+  for(idx <- 0 until 1) {
+    val trapInfo = io.throwTrapPorts(idx)
+    when(trapInfo.throwTrap) {
+      when(csrEntities(getCsrIndexByName("medeleg"))(trapInfo.trapCause)) {
+        /* delegate to supervisor */
+        csrEntities(getCsrIndexByName("scause")) := trapInfo.trapCause.asBits.resized & B"32'h7fff_ffff"
+        csrEntities(getCsrIndexByName("sepc")) := trapInfo.trapPc
+        csrEntities(getCsrIndexByName("stval")) := trapInfo.trapValue
+
+        /* SPP */
+        csrEntities(getCsrIndexByName("sstatus"))(8) := privilegeLevel(0)
+        /* SPIE */
+        csrEntities(getCsrIndexByName("sstatus"))(5) := csrEntities(getCsrIndexByName("sstatus"))(1) /* SIE */
+        /* Set SIE to Zero */
+        csrEntities(getCsrIndexByName("sstatus"))(1) := False
+
+        /* 给出应当跳转到的 Handler 地址 */
+        trapValid := True
+        when(csrEntities(getCsrIndexByName("stvec"))(1 downto 0).asUInt === 0) {
+          /* All traps set pc to BASE */
+          trapJumpAddress := Cat(csrEntities(getCsrIndexByName("stvec"))(31 downto 2), B"00").asUInt
+        } elsewhen (csrEntities(getCsrIndexByName("stvec"))(1 downto 0).asUInt === 1) {
+          trapJumpAddress := Cat(csrEntities(getCsrIndexByName("stvec"))(31 downto 2), B"00").asUInt +
+            (trapInfo.trapCause.asBits.resize(32) |<< 2)
+        }
+
+        /* 进入 Supervisor */
+        privilegeLevel := PrivilegeLevels.supervisor
+      } otherwise {
+        csrEntities(getCsrIndexByName("mcause")) := trapInfo.trapCause.asBits.resized & B"32'h7fff_ffff"
+        csrEntities(getCsrIndexByName("mepc")) := trapInfo.trapPc
+        csrEntities(getCsrIndexByName("mtval")) := trapInfo.trapValue
+
+        /* MPP */
+        csrEntities(getCsrIndexByName("mstatus"))(12 downto 11) := privilegeLevel
+        /* MPIE */
+        csrEntities(getCsrIndexByName("mstatus"))(7) := csrEntities(getCsrIndexByName("mstatus"))(3) /* MIE */
+        /* Set MIE to Zero */
+        csrEntities(getCsrIndexByName("mstatus"))(3) := False
+
+        /* 给出应当跳转到的 Handler 地址 */
+        trapValid := True
+        when(csrEntities(getCsrIndexByName("mtvec"))(1 downto 0).asUInt === 0) {
+          /* All traps set pc to BASE */
+          trapJumpAddress := Cat(csrEntities(getCsrIndexByName("mtvec"))(31 downto 2), B"00").asUInt
+        } elsewhen (csrEntities(getCsrIndexByName("mtvec"))(1 downto 0).asUInt === 1) {
+          trapJumpAddress := Cat(csrEntities(getCsrIndexByName("mtvec"))(31 downto 2), B"00").asUInt +
+            (trapInfo.trapCause.asBits.resize(32) |<< 2)
+        }
+
+        /* 进入 Machine 模式 */
+        privilegeLevel := PrivilegeLevels.machine
+      }
+
+    }
+  }
+
+  when(io.doTrapInfo.trapReady) {
+    trapValid := False
   }
 }
