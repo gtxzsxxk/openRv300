@@ -9,9 +9,15 @@ case class CSRs() extends Component {
     val doTrapInfo = master(DoTrapInformation())
     val throwTrapPorts = Vec.fill(1)(slave(ThrowTrapInformation()))
 
+    /* 组合逻辑，产生 Trap，需要清空暂未提交的指令 */
+    /* 分别对应译码阶段、执行阶段、访存阶段产生的异常 */
+    val csrNeedStall = out port Vec.fill(3)(Bool())
   }
 
   io.port.readData := 0
+  for(idx <- 0 until 3) {
+    io.csrNeedStall(idx) := False
+  }
 
   object CSRReadWrite extends SpinalEnum {
     val readOnly, readWrite = newElement()
@@ -175,6 +181,17 @@ case class CSRs() extends Component {
         privilegeLevel := PrivilegeLevels.machine
       }
 
+      switch(trapInfo.fromWhichStage) {
+        is(U"3'd1") {
+          io.csrNeedStall(0) := True
+        }
+        is(U"3'd2") {
+          io.csrNeedStall(1) := True
+        }
+        is(U"3'd3") {
+          io.csrNeedStall(2) := True
+        }
+      }
     }
   }
 
