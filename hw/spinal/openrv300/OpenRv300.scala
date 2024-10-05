@@ -68,7 +68,6 @@ case class OpenRv300() extends Component {
   fetch.io.dCacheMiss := mem.io.dCacheMiss
   /* exec 执行需要多个周期才能完成的指令时，停止取指 */
   fetch.io.execNeedStall := exec.io.execNeedStall
-  fetch.io.execAnswer := exec.io.answer
   decode.io.execNeedStall := exec.io.execNeedStall
   decode.io.execNeedStallInst := exec.io.execNeedStallInst
 

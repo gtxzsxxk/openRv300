@@ -15,7 +15,6 @@ case class InstFetch() extends Component {
     val memAnswer = slave(Flow(ExecMemPayload()))
     val dCacheMiss = in port Bool()
 
-    val execAnswer = slave(Flow(ExecMemPayload()))
     val execNeedStall = in port Bool()
 
     val iCachePort = master(CacheCorePort())
