@@ -1,6 +1,6 @@
 package openrv300.pipeline
 
-import openrv300.isa.MicroOp
+import openrv300.isa.{ExceptionCode, MicroOp}
 import spinal.core._
 import spinal.lib._
 import spinal.lib.fsm._
@@ -35,6 +35,7 @@ case class InstExec() extends Component {
   ansPayload.registerSources := io.execRegisters
   ansPayload.imm := reqData.imm
   ansPayload.sextImm := reqData.sextImm
+  ansPayload.trap := reqData.trap
 
   ansPayload.writeRegDest := False
   ansPayload.regDestValue := B"32'd0"
@@ -83,13 +84,20 @@ case class InstExec() extends Component {
   io.execNeedStall := False
   io.execNeedStallInst := 0
 
+  def illegalInstruction(): Unit = {
+    ansPayload.trap.throwTrap := True
+    ansPayload.trap.trapPc := reqData.instPc
+    ansPayload.trap.trapCause := ExceptionCode.IllegalInstruction
+    ansPayload.trap.trapValue := reqData.instruction
+  }
+
   val fsm = new StateMachine {
     val normal = new State with EntryPoint
     val waitForMulDivExec = new State
     val stallInst = Reg(Bits(32 bits))
 
     normal.whenIsActive {
-      when(io.isStalling || !io.request.valid || ansPayload.takeJump) {
+      when(io.isStalling || !io.request.valid || ansPayload.takeJump || (io.request.valid && io.request.trap.throwTrap)) {
         /* 译出NOP */
         NOP()
       } otherwise {
@@ -147,7 +155,7 @@ case class InstExec() extends Component {
               }
             }
             default {
-              /* TODO: illegal Inst. */
+              illegalInstruction()
             }
 
             ansPayload.jumpPc := reqData.instPc + reqData.sextImm.asUInt
@@ -190,7 +198,7 @@ case class InstExec() extends Component {
                 ansPayload.regDestValue := (registerSourceValues(0).asUInt & reqData.sextImm.asUInt).asBits
               }
               default {
-                /* TODO: illegal Inst. */
+                illegalInstruction()
               }
             }
             insertBypass(true)
@@ -242,7 +250,7 @@ case class InstExec() extends Component {
                     ansPayload.regDestValue := (registerSourceValues(0).asUInt & registerSourceValues(1).asUInt).asBits
                   }
                   default {
-                    /* TODO: illegal Inst. */
+                    illegalInstruction()
                   }
                 }
               }
@@ -251,7 +259,7 @@ case class InstExec() extends Component {
                   /* SUB */
                   ansPayload.regDestValue := (registerSourceValues(0).asUInt - registerSourceValues(1).asUInt).asBits
                 } otherwise {
-                  /* TODO: illegal Inst. */
+                  illegalInstruction()
                 }
               }
               is(B"0000001") {
@@ -262,7 +270,7 @@ case class InstExec() extends Component {
                 goto(waitForMulDivExec)
               }
               default {
-                /* TODO: illegal Inst. */
+                illegalInstruction()
               }
             }
             insertBypass(true)
@@ -291,7 +299,7 @@ case class InstExec() extends Component {
             insertBypass(false)
           }
           default {
-            /* TODO: illegal Inst. */
+            illegalInstruction()
           }
         }
       }

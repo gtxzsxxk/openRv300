@@ -6,6 +6,7 @@ import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
 import openrv300.isa._
 import openrv300.pipeline.control.BypassReadPort
 import openrv300.pipeline.fifo.FetchBufferElement
+import openrv300.privilege.PrivilegeLevels
 import openrv300.regfile.{GPRs, GPRsReadPort}
 
 case class InstDecode() extends Component {
@@ -21,6 +22,8 @@ case class InstDecode() extends Component {
     val execNeedStall = in port Bool()
     val execNeedStallInst = in port Bits(32 bits)
     val takeJump = in port Bool()
+
+    val privilegeLevel = in port Bits(2 bits)
   }
 
   /* 此时源寄存器不再随着ans payload寄存，所以需要使用寄存器 */
@@ -85,6 +88,7 @@ case class InstDecode() extends Component {
   ansPayload.regDest := U"5'd0"
   ansPayload.imm := B"20'd0"
   ansPayload.sextImm := S"32'd0"
+  ansPayload.trap := reqData.trap
 
   def NOP(microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
     val tmpBundle = RegisterSourceBundle()
@@ -164,125 +168,147 @@ case class InstDecode() extends Component {
     }
   }
 
-  switch(reqData.instruction) {
-    is(RV32I.LUI, RV32I.AUIPC) {
-      ansPayload.microOp := Mux(reqData.instruction === RV32I.LUI, MicroOp.LUI, MicroOp.AUIPC)
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      ansPayload.imm := reqData.instruction(31 downto 12)
-    }
-    is(RV32I.JAL) {
-      ansPayload.microOp := MicroOp.JAL
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      ansPayload.sextImm :=
-        Cat(reqData.instruction(31), reqData.instruction(19 downto 12),
-          reqData.instruction(20), reqData.instruction(30 downto 21), B"0").asSInt.resize(32)
-    }
-    is(RV32I.JALR) {
-      ansPayload.microOp := MicroOp.JALR
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-    }
-    is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
-      ansPayload.microOp := MicroOp.BRANCH
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      ansPayload.sextImm :=
-        Cat(reqData.instruction(31), reqData.instruction(7),
-          reqData.instruction(30 downto 25),
-          reqData.instruction(11 downto 8), B"0").asSInt.resize(32)
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      genRegSourceBundle(reqData.instruction, 24, 20, 1)
-    }
-    is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
-      ansPayload.microOp := MicroOp.LOAD
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
-
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-    }
-    is(RV32I.SB, RV32I.SH, RV32I.SW) {
-      ansPayload.microOp := MicroOp.STORE
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      ansPayload.sextImm :=
-        Cat(reqData.instruction(31 downto 25),
-          reqData.instruction(11 downto 7)).asSInt.resize(32)
-
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      genRegSourceBundle(reqData.instruction, 24, 20, 1)
-    }
-    is(RV32I.ADDI, RV32I.SLTI, RV32I.SLTIU, RV32I.XORI, RV32I.ORI, RV32I.ANDI) {
-      ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
-    }
-    is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
-      when(reqData.instruction === RV32I.SLLI) {
-        ansPayload.microOp := MicroOp.ARITH_SLL_IMM
-      } elsewhen (reqData.instruction === RV32I.SRLI) {
-        ansPayload.microOp := MicroOp.ARITH_SRL_IMM
-      } otherwise {
-        ansPayload.microOp := MicroOp.ARITH_SRA_IMM
-      }
-
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      ansPayload.imm := reqData.instruction(24 downto 20).resized
-    }
-    is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
-      RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
-      RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU,
-      RV32M.DIV, RV32M.DIVU, RV32M.REM, RV32M.REMU) {
-      when(reqData.instruction === RV32I.SLL) {
-        ansPayload.microOp := MicroOp.ARITH_SLL
-      } elsewhen (reqData.instruction === RV32I.SRL) {
-        ansPayload.microOp := MicroOp.ARITH_SRL
-      } elsewhen (reqData.instruction === RV32I.SRA) {
-        ansPayload.microOp := MicroOp.ARITH_SRA
-      } otherwise {
-        ansPayload.microOp := MicroOp.ARITH_BINARY
-      }
-
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
-      genRegSourceBundle(reqData.instruction, 24, 20, 1)
-
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      ansPayload.function1 := reqData.instruction(31 downto 25)
-    }
-    is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
-      /* decode as nop */
+  when(reqDataValid) {
+    when(reqData.trap.throwTrap) {
       NOP()
-    }
-    is(RV32I.ECALL) {
-      /* TODO: raise an exception */
-      NOP(MicroOp.ECALL)
-    }
-    is(ZICSR_ZIFENCEI.CSRRW, ZICSR_ZIFENCEI.CSRRS, ZICSR_ZIFENCEI.CSRRC) {
-      ansPayload.microOp := MicroOp.CSR
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+    } otherwise {
+      switch(reqData.instruction) {
+        is(RV32I.LUI, RV32I.AUIPC) {
+          ansPayload.microOp := Mux(reqData.instruction === RV32I.LUI, MicroOp.LUI, MicroOp.AUIPC)
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          ansPayload.imm := reqData.instruction(31 downto 12)
+        }
+        is(RV32I.JAL) {
+          ansPayload.microOp := MicroOp.JAL
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          ansPayload.sextImm :=
+            Cat(reqData.instruction(31), reqData.instruction(19 downto 12),
+              reqData.instruction(20), reqData.instruction(30 downto 21), B"0").asSInt.resize(32)
+        }
+        is(RV32I.JALR) {
+          ansPayload.microOp := MicroOp.JALR
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+        }
+        is(RV32I.BEQ, RV32I.BNE, RV32I.BLT, RV32I.BGE, RV32I.BLTU, RV32I.BGEU) {
+          ansPayload.microOp := MicroOp.BRANCH
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          ansPayload.sextImm :=
+            Cat(reqData.instruction(31), reqData.instruction(7),
+              reqData.instruction(30 downto 25),
+              reqData.instruction(11 downto 8), B"0").asSInt.resize(32)
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          genRegSourceBundle(reqData.instruction, 24, 20, 1)
+        }
+        is(RV32I.LB, RV32I.LH, RV32I.LW, RV32I.LBU, RV32I.LHU) {
+          ansPayload.microOp := MicroOp.LOAD
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
 
-      genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+        }
+        is(RV32I.SB, RV32I.SH, RV32I.SW) {
+          ansPayload.microOp := MicroOp.STORE
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          ansPayload.sextImm :=
+            Cat(reqData.instruction(31 downto 25),
+              reqData.instruction(11 downto 7)).asSInt.resize(32)
 
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      /* CSR 地址 */
-      ansPayload.imm := reqData.instruction(31 downto 20).resized
-    }
-    is(ZICSR_ZIFENCEI.CSRRWI, ZICSR_ZIFENCEI.CSRRSI, ZICSR_ZIFENCEI.CSRRCI) {
-      ansPayload.microOp := MicroOp.CSR
-      ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          genRegSourceBundle(reqData.instruction, 24, 20, 1)
+        }
+        is(RV32I.ADDI, RV32I.SLTI, RV32I.SLTIU, RV32I.XORI, RV32I.ORI, RV32I.ANDI) {
+          ansPayload.microOp := MicroOp.ARITH_BINARY_IMM
+          ansPayload.function0 := reqData.instruction(14 downto 12)
 
-      ansPayload.function0 := reqData.instruction(14 downto 12)
-      /* CSR 的立即数 UIMM */
-      ansPayload.function1 := reqData.instruction(19 downto 15).resized
-      ansPayload.imm := reqData.instruction(31 downto 20).resized
-    }
-    default {
-      /* TODO: raise an exception */
-      NOP()
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          ansPayload.sextImm := reqData.instruction(31 downto 20).asSInt.resize(32)
+        }
+        is(RV32I.SLLI, RV32I.SRLI, RV32I.SRAI) {
+          when(reqData.instruction === RV32I.SLLI) {
+            ansPayload.microOp := MicroOp.ARITH_SLL_IMM
+          } elsewhen (reqData.instruction === RV32I.SRLI) {
+            ansPayload.microOp := MicroOp.ARITH_SRL_IMM
+          } otherwise {
+            ansPayload.microOp := MicroOp.ARITH_SRA_IMM
+          }
+
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          ansPayload.imm := reqData.instruction(24 downto 20).resized
+        }
+        is(RV32I.ADD, RV32I.SUB, RV32I.SLL, RV32I.SLT, RV32I.SLTU,
+          RV32I.XOR, RV32I.SRL, RV32I.SRA, RV32I.OR, RV32I.AND,
+          RV32M.MUL, RV32M.MULH, RV32M.MULHU, RV32M.MULHSU,
+          RV32M.DIV, RV32M.DIVU, RV32M.REM, RV32M.REMU) {
+          when(reqData.instruction === RV32I.SLL) {
+            ansPayload.microOp := MicroOp.ARITH_SLL
+          } elsewhen (reqData.instruction === RV32I.SRL) {
+            ansPayload.microOp := MicroOp.ARITH_SRL
+          } elsewhen (reqData.instruction === RV32I.SRA) {
+            ansPayload.microOp := MicroOp.ARITH_SRA
+          } otherwise {
+            ansPayload.microOp := MicroOp.ARITH_BINARY
+          }
+
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+          genRegSourceBundle(reqData.instruction, 24, 20, 1)
+
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          ansPayload.function1 := reqData.instruction(31 downto 25)
+        }
+        is(RV32I.FENCE, RV32I.FENCE_TSO, RV32I.PAUSE, RV32I.EBREAK) {
+          /* decode as nop */
+          NOP()
+        }
+        is(RV32I.ECALL) {
+          switch(io.privilegeLevel) {
+            is(PrivilegeLevels.machine) {
+              ansPayload.trap.trapCause := ExceptionCode.EcallFromMachine
+            }
+            is(PrivilegeLevels.supervisor) {
+              ansPayload.trap.trapCause := ExceptionCode.EcallFromSupervisor
+            }
+            is(PrivilegeLevels.user) {
+              ansPayload.trap.trapCause := ExceptionCode.EcallFromUser
+            }
+          }
+          ansPayload.trap.throwTrap := True
+          ansPayload.trap.trapValue := 0
+          ansPayload.trap.trapPc := reqData.pcAddr
+          NOP(MicroOp.ECALL)
+        }
+        is(ZICSR_ZIFENCEI.CSRRW, ZICSR_ZIFENCEI.CSRRS, ZICSR_ZIFENCEI.CSRRC) {
+          ansPayload.microOp := MicroOp.CSR
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+
+          genRegSourceBundle(reqData.instruction, 19, 15, 0)
+
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          /* CSR 地址 */
+          ansPayload.imm := reqData.instruction(31 downto 20).resized
+        }
+        is(ZICSR_ZIFENCEI.CSRRWI, ZICSR_ZIFENCEI.CSRRSI, ZICSR_ZIFENCEI.CSRRCI) {
+          ansPayload.microOp := MicroOp.CSR
+          ansPayload.regDest := reqData.instruction(11 downto 7).asUInt
+
+          ansPayload.function0 := reqData.instruction(14 downto 12)
+          /* CSR 的立即数 UIMM */
+          ansPayload.function1 := reqData.instruction(19 downto 15).resized
+          ansPayload.imm := reqData.instruction(31 downto 20).resized
+        }
+        default {
+          ansPayload.trap.throwTrap := True
+          ansPayload.trap.trapCause := ExceptionCode.IllegalInstruction
+          ansPayload.trap.trapValue := reqData.instruction
+          ansPayload.trap.trapPc := reqData.pcAddr
+          NOP()
+        }
+      }
     }
   }
 

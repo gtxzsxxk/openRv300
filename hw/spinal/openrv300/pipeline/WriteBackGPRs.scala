@@ -37,7 +37,7 @@ case class WriteBackGPRs() extends Component {
     bypassWPort.finished := Bool(solvedThisStage)
   }
 
-  when(reqValid && reqData.writeRegDest) {
+  when(reqValid && reqData.writeRegDest && !reqData.trap.throwTrap) {
     io.regWritePort.writeEnable := True
     io.regWritePort.writeAddr := reqData.regDest
     io.regWritePort.writeData := reqData.regDestValue
