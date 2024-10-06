@@ -1,5 +1,6 @@
 package openrv300.pipeline.payload
 
+import openrv300.privilege.ThrowTrapRequest
 import spinal.core._
 
 case class DecodePayload() extends Bundle {
@@ -15,4 +16,6 @@ case class DecodePayload() extends Bundle {
 
   val imm = Bits(20 bits)
   val sextImm = SInt(32 bits)
+
+  val trap = ThrowTrapRequest()
 }

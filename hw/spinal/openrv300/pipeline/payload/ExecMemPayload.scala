@@ -1,5 +1,6 @@
 package openrv300.pipeline.payload
 
+import openrv300.privilege.ThrowTrapRequest
 import spinal.core._
 
 case class ExecMemPayload() extends Bundle {
@@ -25,4 +26,6 @@ case class ExecMemPayload() extends Bundle {
   val jumpPc = UInt(32 bits)
 
   val memoryAddress = UInt(32 bits)
+
+  val trap = ThrowTrapRequest()
 }
