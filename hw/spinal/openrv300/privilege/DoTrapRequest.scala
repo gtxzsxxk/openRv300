@@ -3,7 +3,7 @@ package openrv300.privilege
 import spinal.core._
 import spinal.lib._
 
-case class DoTrapInformation() extends Bundle with IMasterSlave {
+case class DoTrapRequest() extends Bundle with IMasterSlave {
   val trapJumpAddress = UInt(32 bits)
   val trapValid = Bool()
   val trapReady = Bool()

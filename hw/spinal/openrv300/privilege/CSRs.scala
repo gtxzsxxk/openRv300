@@ -7,8 +7,8 @@ case class CSRs() extends Component {
   val io = new Bundle {
     val port = slave(CSRPort())
     /* 与 write back 连在一起 */
-    val throwTrapPort = slave(ThrowTrapInformation())
-    val doTrapPort = master(DoTrapInformation())
+    val throwTrapPort = slave(ThrowTrapRequest())
+    val doTrapPort = master(DoTrapRequest())
 
     /* 组合逻辑，产生 Trap，需要清空暂未提交的指令 */
     val throwTrapNow = in port Bits(3 bits)
