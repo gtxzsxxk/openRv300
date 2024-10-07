@@ -82,9 +82,9 @@ case class OpenRv300() extends Component {
   /* 给出 Trap 地址，要求 fetch 跳转 */
   fetch.io.doTrapPort <> csrs.io.doTrapPort
   /* 记录流水线中哪一级发生了异常，停止之后指令 */
-  csrs.io.throwTrapNow(0) := decode.io.answer.trap.throwTrap & decode.io.answer.valid
-  csrs.io.throwTrapNow(1) := exec.io.answer.trap.throwTrap & exec.io.answer.valid
-  csrs.io.throwTrapNow(2) := mem.io.answer.trap.throwTrap & mem.io.answer.valid
+  csrs.io.throwTrapNow(0) := decode.io.answer.trap.throwTrap
+  csrs.io.throwTrapNow(1) := exec.io.answer.trap.throwTrap
+  csrs.io.throwTrapNow(2) := mem.io.answer.trap.throwTrap
   /* decode 处理 ECALL 时，需要知道当前的特权态 */
   decode.io.privilegeLevel := csrs.io.privilegeLevel
   /* 将 csr need stall 信号传给对应的流水线级 */
