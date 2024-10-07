@@ -70,14 +70,21 @@ case class InstExec() extends Component {
   mulDivExec.io.request.valid := False
   mulDivExec.io.execRegisters := io.execRegisters
 
-  def NOP(fakeNop: Boolean = false, microOp: Bits = MicroOp.ARITH_BINARY_IMM): Unit = {
+  def NOP(fakeNop: Boolean = false, microOp: Bits = MicroOp.ARITH_BINARY_IMM, passTrap: Boolean = false): Unit = {
     ansPayload.microOp := microOp
     ansPayload.writeRegDest := True
     ansPayload.regDest := U"5'd0"
     ansPayload.regDestValue := B"32'd0"
-    if (!fakeNop) {
+    if (fakeNop) {
+      ansPayload.isNOP := False
+      ansValid := True
+    } else {
       ansPayload.isNOP := True
       ansValid := False
+
+      if(!passTrap) {
+        ansPayload.trap.throwTrap := False
+      }
     }
     insertBypass(true)
   }
@@ -101,9 +108,11 @@ case class InstExec() extends Component {
     val stallInst = Reg(Bits(32 bits))
 
     normal.whenIsActive {
-      when(io.isStalling || !io.request.valid || ansPayload.takeJump || (io.request.valid && io.request.trap.throwTrap) || io.csrNeedStall) {
+      when(io.isStalling || !io.request.valid || ansPayload.takeJump || io.csrNeedStall) {
         /* 译出NOP */
         NOP()
+      } elsewhen (io.request.valid && io.request.trap.throwTrap) {
+        NOP(passTrap = true, microOp = io.request.payload.microOp)
       } otherwise {
         ansValid := True
         switch(reqData.microOp) {
