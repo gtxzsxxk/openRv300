@@ -10,6 +10,9 @@ case class CSRs() extends Component {
     val throwTrapPort = slave(ThrowTrapRequest())
     val doTrapPort = master(DoTrapRequest())
 
+    /* 如果 trap 来自没有执行的分支的指令，就需要清楚trap */
+    val clearTrap = in port Bool()
+
     /* 组合逻辑，产生 Trap，需要清空暂未提交的指令 */
     /* 分别对应译码阶段、执行、访存阶段需要 stall，
      * 如果取指出了问题，不会影响其它流水段 */
@@ -189,29 +192,33 @@ case class CSRs() extends Component {
   val csrNeedStallReg = Reg(Bits(4 bits)) init (0)
 
   io.csrNeedStall := csrNeedStallReg
-  switch(io.throwTrapNow) {
-    is(B"001") {
-      /* 译码 */
-      io.csrNeedStall := B"001"
-      csrNeedStallReg := io.csrNeedStall
-    }
-    is(M"01-") {
-      /* 执行 */
-      io.csrNeedStall := B"011"
-      csrNeedStallReg := io.csrNeedStall
-    }
-    is(M"1--") {
-      /* MEM */
-      io.csrNeedStall := B"111"
-      csrNeedStallReg := io.csrNeedStall
+
+  when(io.clearTrap) {
+    csrNeedStallReg := 0
+    trapValid := False
+  } otherwise {
+    switch(io.throwTrapNow) {
+      is(B"001") {
+        /* 译码 */
         io.csrNeedStall := B"0011"
+        csrNeedStallReg := io.csrNeedStall
+      }
+      is(M"01-") {
+        /* 执行 */
         io.csrNeedStall := B"0111"
+        csrNeedStallReg := io.csrNeedStall
+      }
+      is(M"1--") {
+        /* MEM */
         io.csrNeedStall := B"1111"
+        csrNeedStallReg := io.csrNeedStall
+      }
     }
   }
 
   when(io.doTrapPort.trapReady) {
     //    io.csrNeedStall := 0
     csrNeedStallReg := 0
+    trapValid := False
   }
 }

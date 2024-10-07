@@ -92,6 +92,8 @@ case class OpenRv300() extends Component {
   decode.io.csrNeedStall := csrs.io.csrNeedStall(1)
   exec.io.csrNeedStall := csrs.io.csrNeedStall(2)
   mem.io.csrNeedStall := csrs.io.csrNeedStall(3)
+  /* 没有执行的另一个分支的异常需要被清除 */
+  csrs.io.clearTrap := exec.io.answer.payload.takeJump
 
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort
