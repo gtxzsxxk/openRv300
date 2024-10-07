@@ -267,13 +267,13 @@ case class InstDecode() extends Component {
         }
         is(RV32I.ECALL) {
           switch(io.privilegeLevel) {
-            is(PrivilegeLevels.machine) {
+            is(PrivilegeLevels.machine.asBits) {
               ansPayload.trap.trapCause := ExceptionCode.EcallFromMachine
             }
-            is(PrivilegeLevels.supervisor) {
+            is(PrivilegeLevels.supervisor.asBits) {
               ansPayload.trap.trapCause := ExceptionCode.EcallFromSupervisor
             }
-            is(PrivilegeLevels.user) {
+            is(PrivilegeLevels.user.asBits) {
               ansPayload.trap.trapCause := ExceptionCode.EcallFromUser
             }
           }

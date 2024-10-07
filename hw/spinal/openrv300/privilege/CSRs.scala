@@ -19,9 +19,6 @@ case class CSRs() extends Component {
   }
 
   io.port.readData := 0
-  for (idx <- 0 until 3) {
-    io.csrNeedStall(idx) := False
-  }
 
   object CSRReadWrite extends SpinalEnum {
     val readOnly, readWrite = newElement()
@@ -135,10 +132,10 @@ case class CSRs() extends Component {
 
   val trapInfo = io.throwTrapPort
   when(trapInfo.throwTrap) {
-    when(csrEntities(getCsrIndexByName("medeleg"))(trapInfo.trapCause)) {
+    when(csrEntities(getCsrIndexByName("medeleg"))(trapInfo.trapCause.resized)) {
       /* delegate to supervisor */
       csrEntities(getCsrIndexByName("scause")) := trapInfo.trapCause.asBits.resized & B"32'h7fff_ffff"
-      csrEntities(getCsrIndexByName("sepc")) := trapInfo.trapPc
+      csrEntities(getCsrIndexByName("sepc")) := trapInfo.trapPc.asBits
       csrEntities(getCsrIndexByName("stval")) := trapInfo.trapValue
 
       /* SPP */
@@ -155,14 +152,14 @@ case class CSRs() extends Component {
         trapJumpAddress := Cat(csrEntities(getCsrIndexByName("stvec"))(31 downto 2), B"00").asUInt
       } elsewhen (csrEntities(getCsrIndexByName("stvec"))(1 downto 0).asUInt === 1) {
         trapJumpAddress := Cat(csrEntities(getCsrIndexByName("stvec"))(31 downto 2), B"00").asUInt +
-          (trapInfo.trapCause.asBits.resize(32) |<< 2)
+          (trapInfo.trapCause.asBits.resize(32) |<< 2).asUInt
       }
 
       /* 进入 Supervisor */
-      privilegeLevel := PrivilegeLevels.supervisor
+      privilegeLevel := PrivilegeLevels.supervisor.asBits
     } otherwise {
       csrEntities(getCsrIndexByName("mcause")) := trapInfo.trapCause.asBits.resized & B"32'h7fff_ffff"
-      csrEntities(getCsrIndexByName("mepc")) := trapInfo.trapPc
+      csrEntities(getCsrIndexByName("mepc")) := trapInfo.trapPc.asBits
       csrEntities(getCsrIndexByName("mtval")) := trapInfo.trapValue
 
       /* MPP */
@@ -179,15 +176,16 @@ case class CSRs() extends Component {
         trapJumpAddress := Cat(csrEntities(getCsrIndexByName("mtvec"))(31 downto 2), B"00").asUInt
       } elsewhen (csrEntities(getCsrIndexByName("mtvec"))(1 downto 0).asUInt === 1) {
         trapJumpAddress := Cat(csrEntities(getCsrIndexByName("mtvec"))(31 downto 2), B"00").asUInt +
-          (trapInfo.trapCause.asBits.resize(32) |<< 2)
+          (trapInfo.trapCause.asBits.resize(32) |<< 2).asUInt
       }
 
       /* 进入 Machine 模式 */
-      privilegeLevel := PrivilegeLevels.machine
+      privilegeLevel := PrivilegeLevels.machine.asBits
     }
   }
 
-  val csrNeedStallReg = Reg(Bits(3 bits))
+  val csrNeedStallReg = Reg(Bits(3 bits)) init (0)
+
   io.csrNeedStall := csrNeedStallReg
   switch(io.throwTrapNow) {
     is(B"001") {
@@ -195,12 +193,12 @@ case class CSRs() extends Component {
       io.csrNeedStall := B"001"
       csrNeedStallReg := io.csrNeedStall
     }
-    is(B"01-") {
+    is(M"01-") {
       /* 执行 */
       io.csrNeedStall := B"011"
       csrNeedStallReg := io.csrNeedStall
     }
-    is(B"1--") {
+    is(M"1--") {
       /* MEM */
       io.csrNeedStall := B"111"
       csrNeedStallReg := io.csrNeedStall

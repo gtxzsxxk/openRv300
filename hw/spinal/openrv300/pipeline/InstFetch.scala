@@ -103,7 +103,7 @@ case class InstFetch() extends Component {
               /* 非对齐 */
               ansPayload.trap.throwTrap := True
               ansPayload.trap.trapCause := ExceptionCode.InstAddrMisaligned
-              ansPayload.trap.trapValue := programCounter
+              ansPayload.trap.trapValue := programCounter.asBits
               ansPayload.trap.trapPc := programCounter
             }
           } otherwise {

@@ -13,6 +13,8 @@ case class WriteBackGPRs() extends Component {
     /* 与寄存器堆的读取分开，寄存器堆的读取仅在decode阶段 */
     /* 所以这里新写入的值，会通过旁路网络，下一拍decode才可以从寄存器读到最新的值 */
     val bypassWritePort = master(BypassWritePort())
+
+    val throwTrapPort = master(ThrowTrapRequest())
   }
 
   val reqData = io.request.payload
@@ -44,4 +46,8 @@ case class WriteBackGPRs() extends Component {
 
     insertBypass(true)
   }
+  io.throwTrapPort.throwTrap := False
+  io.throwTrapPort.trapCause := 0
+  io.throwTrapPort.trapPc := 0
+  io.throwTrapPort.trapValue := 0
 }
