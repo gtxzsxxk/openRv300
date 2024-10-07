@@ -30,6 +30,7 @@ case class InstFetch() extends Component {
     val fetchBufferPushData = out port FetchPayload()
     val fetchBufferPushValid = out port Bool()
     val fetchBufferHead = in port FetchBufferElement()
+    val fetchBufferPop = out port Bool()
   }
 
   val programCounter = RegInit(startAddress)
@@ -48,6 +49,7 @@ case class InstFetch() extends Component {
   ansPayload.trap.trapCause := 0
   ansPayload.trap.trapValue := 0
   io.fetchBufferPushData := ansPayload
+  io.fetchBufferPop := False
 
   val justReset = Reg(Bool()) init (True)
 
@@ -69,6 +71,8 @@ case class InstFetch() extends Component {
       when(io.takeJump) {
         programCounter := io.jumpAddress
         fetchValid := False
+        /* 清空 fetch buffer，理论上应该是clear，但是这里只存一条指令，所以可以直接pop */
+        io.fetchBufferPop := True
       } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
         goto(iCacheMiss)
@@ -157,9 +161,13 @@ case class InstFetch() extends Component {
 
     csrStall.whenIsActive {
       fetchValid := False
+      /* 清空 fetch buffer，理论上应该是clear，但是这里只存一条指令，所以可以直接pop */
+      io.fetchBufferPop := True
       when(io.doTrapPort.trapValid) {
         io.doTrapPort.trapReady := True
         programCounter := io.doTrapPort.trapJumpAddress
+        goto(normalWorking)
+      } elsewhen (io.csrNeedStall === False) {
         goto(normalWorking)
       }
     }

@@ -44,7 +44,7 @@ case class OpenRv300() extends Component {
   /* 连接流水级 */
   fetchBuffer.io.pushValid := fetch.io.fetchBufferPushValid
   fetchBuffer.io.pushData := fetch.io.fetchBufferPushData
-  fetchBuffer.io.pop := decode.io.fetchBufferPop
+  fetchBuffer.io.pop := decode.io.fetchBufferPop || fetch.io.fetchBufferPop
   fetch.io.fetchBufferHead := fetchBuffer.io.head
   decode.io.fetchBufferHead := fetchBuffer.io.head
   decode.io.answer <> exec.io.request
