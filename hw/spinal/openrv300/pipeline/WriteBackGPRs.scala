@@ -52,7 +52,9 @@ case class WriteBackGPRs() extends Component {
   io.throwTrapPort.trapCause := 0
   io.throwTrapPort.trapPc := 0
   io.throwTrapPort.trapValue := 0
-  when(reqValid) {
+  /* 由于指令引起了异常，因此这条指令不能被标记为valid， */
+  /* 否则相当于提交了一条引起异常的指令。 */
+  when(reqData.trap.throwTrap) {
     io.throwTrapPort := reqData.trap
   }
 }
