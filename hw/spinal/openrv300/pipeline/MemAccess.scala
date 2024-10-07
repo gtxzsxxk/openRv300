@@ -139,6 +139,12 @@ case class MemAccess() extends Component {
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
     val cacheMiss = new State
+    /* CSR 指令需要原子实现，并且为了避免这个时候更新 CSR 与下一条指令冲突
+     * 在执行 CSR 指令时应当清空流水线 */
+    val zicsr = new State
+
+    /* CSR 指令的倒计时，设置为 5，等待流水线的清空 */
+    val zicsrCnt = Reg(UInt(3 bits))
 
     val fsmReqData = Reg(ExecMemPayload())
 
@@ -163,60 +169,12 @@ case class MemAccess() extends Component {
               doLoadStore(reqData)
             }
             is(MicroOp.CSR) {
-              io.csrPort.valid := True
-              io.csrPort.address := reqData.imm(11 downto 0).asUInt
-              switch(reqData.function0) {
-                is(B"001") {
-                  /* CSRRW */
-                  when(reqData.regDest === 0) {
-                    io.csrPort.noRead := True
-                  }
-                  io.csrPort.withWrite := True
-                  io.csrPort.writeData := reqData.registerSources(0).value
-                  ansPayload.regDestValue := io.csrPort.readData
-                }
-                is(B"010") {
-                  /* CSRRS */
-                  ansPayload.regDestValue := io.csrPort.readData
-                  io.csrPort.writeData := io.csrPort.readData | reqData.registerSources(0).value
-                  when(reqData.registerSources(0).which =/= 0) {
-                    io.csrPort.withWrite := True
-                  }
-                }
-                is(B"011") {
-                  /* CSRRC */
-                  ansPayload.regDestValue := io.csrPort.readData
-                  io.csrPort.writeData := io.csrPort.readData & (~reqData.registerSources(0).value)
-                  when(reqData.registerSources(0).which =/= 0) {
-                    io.csrPort.withWrite := True
-                  }
-                }
-                is(B"101") {
-                  /* CSRRWI */
-                  when(reqData.regDest === 0) {
-                    io.csrPort.noRead := True
-                  }
-                  io.csrPort.withWrite := True
-                  io.csrPort.writeData := reqData.function1.resized
-                  ansPayload.regDestValue := io.csrPort.readData
-                }
-                is(B"110") {
-                  /* CSRRSI */
-                  ansPayload.regDestValue := io.csrPort.readData
-                  io.csrPort.writeData := io.csrPort.readData | reqData.function1.resize(32)
-                  when(reqData.function1 =/= 0) {
-                    io.csrPort.withWrite := True
-                  }
-                }
-                is(B"111") {
-                  /* CSRRCI */
-                  ansPayload.regDestValue := io.csrPort.readData
-                  io.csrPort.writeData := io.csrPort.readData & (~reqData.function1.resize(32))
-                  when(reqData.function1 =/= 0) {
-                    io.csrPort.withWrite := True
-                  }
-                }
-              }
+              /* 假装 dCache Miss 了 */
+              fsmReqData := reqData
+              io.dCacheMiss := True
+              ansValid := False
+              zicsrCnt := 5
+              goto(zicsr)
             }
           }
         }
@@ -233,6 +191,73 @@ case class MemAccess() extends Component {
       doLoadStore(fsmReqData)
 
       io.dCacheMiss := io.dCachePort.needStall
+    }
+
+    zicsr.whenIsActive {
+      io.answer.payload := fsmReqData
+      ansValid := False
+      zicsrCnt := zicsrCnt - 1
+      io.dCacheMiss := True
+      when(zicsrCnt === 1) {
+        io.dCacheMiss := False
+        ansValid := True
+        goto(normalWorking)
+
+        io.csrPort.valid := True
+        io.csrPort.address := fsmReqData.imm(11 downto 0).asUInt
+        switch(fsmReqData.function0) {
+          is(B"001") {
+            /* CSRRW */
+            when(fsmReqData.regDest === 0) {
+              io.csrPort.noRead := True
+            }
+            io.csrPort.withWrite := True
+            io.csrPort.writeData := fsmReqData.registerSources(0).value
+            ansPayload.regDestValue := io.csrPort.readData
+          }
+          is(B"010") {
+            /* CSRRS */
+            ansPayload.regDestValue := io.csrPort.readData
+            io.csrPort.writeData := io.csrPort.readData | fsmReqData.registerSources(0).value
+            when(fsmReqData.registerSources(0).which =/= 0) {
+              io.csrPort.withWrite := True
+            }
+          }
+          is(B"011") {
+            /* CSRRC */
+            ansPayload.regDestValue := io.csrPort.readData
+            io.csrPort.writeData := io.csrPort.readData & (~fsmReqData.registerSources(0).value)
+            when(fsmReqData.registerSources(0).which =/= 0) {
+              io.csrPort.withWrite := True
+            }
+          }
+          is(B"101") {
+            /* CSRRWI */
+            when(fsmReqData.regDest === 0) {
+              io.csrPort.noRead := True
+            }
+            io.csrPort.withWrite := True
+            io.csrPort.writeData := fsmReqData.function1.resized
+            ansPayload.regDestValue := io.csrPort.readData
+          }
+          is(B"110") {
+            /* CSRRSI */
+            ansPayload.regDestValue := io.csrPort.readData
+            io.csrPort.writeData := io.csrPort.readData | fsmReqData.function1.resize(32)
+            when(fsmReqData.function1 =/= 0) {
+              io.csrPort.withWrite := True
+            }
+          }
+          is(B"111") {
+            /* CSRRCI */
+            ansPayload.regDestValue := io.csrPort.readData
+            io.csrPort.writeData := io.csrPort.readData & (~fsmReqData.function1.resize(32))
+            when(fsmReqData.function1 =/= 0) {
+              io.csrPort.withWrite := True
+            }
+          }
+        }
+      }
     }
   }
 }
