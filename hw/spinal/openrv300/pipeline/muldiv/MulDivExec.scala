@@ -34,6 +34,7 @@ case class MulDivExec(pipelineStages: Int) extends Component {
   ansPayload.takeJump := False
   ansPayload.jumpPc := 0
   ansPayload.memoryAddress := 0
+  ansPayload.trap := reqData.trap
 
   /* 由于是五级流水线，按序单发射 */
   /* 因此这里需要停顿流水线，并且要求IF,ID重放 */
