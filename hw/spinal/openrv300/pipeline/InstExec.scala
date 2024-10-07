@@ -82,7 +82,7 @@ case class InstExec() extends Component {
       ansPayload.isNOP := True
       ansValid := False
 
-      if(!passTrap) {
+      if (!passTrap) {
         ansPayload.trap.throwTrap := False
       }
     }
@@ -96,6 +96,13 @@ case class InstExec() extends Component {
   io.execNeedStallInst := 0
 
   def illegalInstruction(): Unit = {
+    ansPayload.microOp := reqData.microOp
+    ansPayload.writeRegDest := True
+    ansPayload.regDest := U"5'd0"
+    ansPayload.regDestValue := B"32'd0"
+    ansPayload.isNOP := True
+    ansValid := False
+
     ansPayload.trap.throwTrap := True
     ansPayload.trap.trapPc := reqData.instPc
     ansPayload.trap.trapCause := ExceptionCode.IllegalInstruction
