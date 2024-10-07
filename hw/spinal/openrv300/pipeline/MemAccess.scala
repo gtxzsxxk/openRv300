@@ -26,6 +26,7 @@ case class MemAccess() extends Component {
   io.answer.valid := ansValid
 
   ansPayload <> reqData
+  ansPayload.trap.throwTrap init (False)
 
   io.dCachePort.address := U"32'd0"
   io.dCachePort.isWrite := False

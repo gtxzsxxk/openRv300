@@ -27,6 +27,8 @@ case class InstExec() extends Component {
   val ansValid = Reg(Bool()) init (False)
   io.answer.valid := ansValid
 
+  ansPayload.trap.throwTrap init (False)
+
   ansPayload.microOp := reqData.microOp
   ansPayload.instPc := reqData.instPc
   ansPayload.instruction := reqData.instruction

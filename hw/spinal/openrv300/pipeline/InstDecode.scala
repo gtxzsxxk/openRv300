@@ -61,7 +61,7 @@ case class InstDecode() extends Component {
 
   /* 流水线停顿重放 */
   val lastRequest = Reg(FetchPayload())
-  val needRedoLastRequest = Reg(Bool())
+  val needRedoLastRequest = Reg(Bool()) init (False)
   io.fetchBufferPop := False
 
   when(io.csrNeedStall) {
