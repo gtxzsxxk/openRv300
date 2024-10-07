@@ -11,9 +11,11 @@ case class CSRs() extends Component {
     val doTrapPort = master(DoTrapRequest())
 
     /* 组合逻辑，产生 Trap，需要清空暂未提交的指令 */
+    /* 分别对应译码阶段、执行、访存阶段需要 stall，
+     * 如果取指出了问题，不会影响其它流水段 */
     val throwTrapNow = in port Bits(3 bits)
-    /* 分别对应取指阶段、译码阶段、执行阶段需要 stall */
-    val csrNeedStall = out port Bits(3 bits)
+    /* 分别对应取指阶段、译码阶段、执行、访存阶段需要 stall */
+    val csrNeedStall = out port Bits(4 bits)
 
     val privilegeLevel = out port Bits(2 bits)
   }
@@ -184,7 +186,7 @@ case class CSRs() extends Component {
     }
   }
 
-  val csrNeedStallReg = Reg(Bits(3 bits)) init (0)
+  val csrNeedStallReg = Reg(Bits(4 bits)) init (0)
 
   io.csrNeedStall := csrNeedStallReg
   switch(io.throwTrapNow) {
@@ -202,6 +204,9 @@ case class CSRs() extends Component {
       /* MEM */
       io.csrNeedStall := B"111"
       csrNeedStallReg := io.csrNeedStall
+        io.csrNeedStall := B"0011"
+        io.csrNeedStall := B"0111"
+        io.csrNeedStall := B"1111"
     }
   }
 

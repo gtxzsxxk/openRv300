@@ -91,6 +91,7 @@ case class OpenRv300() extends Component {
   fetch.io.csrNeedStall := csrs.io.csrNeedStall(0)
   decode.io.csrNeedStall := csrs.io.csrNeedStall(1)
   exec.io.csrNeedStall := csrs.io.csrNeedStall(2)
+  mem.io.csrNeedStall := csrs.io.csrNeedStall(3)
 
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort
