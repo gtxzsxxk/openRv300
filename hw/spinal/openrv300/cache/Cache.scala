@@ -65,6 +65,7 @@ case class Cache(ways: Int) extends Component {
 
   io.corePort.needStall := True
   io.corePort.readValue := 0
+  io.corePort.fault := False
   io.memPort.aw.setIdle()
   io.memPort.ar.setIdle()
   io.memPort.w.setIdle()
@@ -274,6 +275,11 @@ case class Cache(ways: Int) extends Component {
             cacheMemories.write(fsmIndex, group)
 
             readCnt := readCnt + 1
+          } otherwise {
+            /* AXI 总线错误，访存失败 */
+            io.corePort.fault := True
+            fsmNeedStall := False
+            goto(cacheNormalWorking)
           }
           when(readCnt === 16 - 1) {
             fsmTempLineFlags.validVec(whichWayToEvict) := True

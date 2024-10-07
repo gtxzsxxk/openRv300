@@ -1,7 +1,7 @@
 package openrv300.pipeline
 
 import openrv300.cache.CacheCorePort
-import openrv300.isa.MicroOp
+import openrv300.isa.{ExceptionCode, MicroOp}
 import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload._
 import openrv300.privilege.CSRPort
@@ -184,11 +184,29 @@ case class MemAccess() extends Component {
     cacheMiss.whenIsActive {
       io.answer.payload := fsmReqData
       ansValid := False
-      when(!io.dCachePort.needStall) {
+
+      doLoadStore(fsmReqData)
+      when(io.dCachePort.fault) {
+        ansValid := False
+        /* 产生异常 */
+        ansPayload.writeRegDest := False
+        ansPayload.regDest := 0
+        ansPayload.regDestValue := 0
+        ansPayload.isNOP := True
+
+        ansPayload.trap.throwTrap := True
+        ansPayload.trap.trapPc := fsmReqData.instPc
+        when(fsmReqData.microOp === MicroOp.LOAD) {
+          ansPayload.trap.trapCause := ExceptionCode.LoadAccessFault
+        } otherwise {
+          ansPayload.trap.trapCause := ExceptionCode.StoreAMOAccessFault
+        }
+        ansPayload.trap.trapValue := fsmReqData.memoryAddress.asBits
+        goto(normalWorking)
+      } elsewhen (io.dCachePort.needStall === False) {
         ansValid := True
         goto(normalWorking)
       }
-      doLoadStore(fsmReqData)
 
       io.dCacheMiss := io.dCachePort.needStall
     }
