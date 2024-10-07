@@ -321,4 +321,8 @@ case class InstDecode() extends Component {
     }
   }
 
+  when(io.takeJump) {
+    ansPayload.trap.throwTrap := False
+  }
+
 }
