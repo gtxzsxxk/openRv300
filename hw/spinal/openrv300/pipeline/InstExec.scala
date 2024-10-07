@@ -18,6 +18,8 @@ case class InstExec() extends Component {
 
     val execNeedStall = out port Bool()
     val execNeedStallInst = out port Bits(32 bits)
+
+    val csrNeedStall = in port Bool()
   }
 
   val reqData = io.request.payload
@@ -97,7 +99,7 @@ case class InstExec() extends Component {
     val stallInst = Reg(Bits(32 bits))
 
     normal.whenIsActive {
-      when(io.isStalling || !io.request.valid || ansPayload.takeJump || (io.request.valid && io.request.trap.throwTrap)) {
+      when(io.isStalling || !io.request.valid || ansPayload.takeJump || (io.request.valid && io.request.trap.throwTrap) || io.csrNeedStall) {
         /* 译出NOP */
         NOP()
       } otherwise {

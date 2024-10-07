@@ -6,7 +6,7 @@ import payload.{DecodePayload, FetchPayload, RegisterSourceBundle}
 import openrv300.isa._
 import openrv300.pipeline.control.BypassReadPort
 import openrv300.pipeline.fifo.FetchBufferElement
-import openrv300.privilege.PrivilegeLevels
+import openrv300.privilege.{PrivilegeLevels, ThrowTrapRequest}
 import openrv300.regfile.{GPRs, GPRsReadPort}
 
 case class InstDecode() extends Component {
@@ -23,6 +23,7 @@ case class InstDecode() extends Component {
     val execNeedStallInst = in port Bits(32 bits)
     val takeJump = in port Bool()
 
+    val csrNeedStall = in port Bool()
     val privilegeLevel = in port Bits(2 bits)
   }
 
@@ -48,6 +49,10 @@ case class InstDecode() extends Component {
   val reqData = FetchPayload()
   reqData.pcAddr := 0
   reqData.instruction := 0
+  reqData.trap.throwTrap := False
+  reqData.trap.trapCause := 0
+  reqData.trap.trapPc := 0
+  reqData.trap.trapValue := 0
   val reqDataValid = Bool()
   reqDataValid := False
   val reqDataValidReg = RegNext(reqDataValid) init (False)
@@ -59,7 +64,11 @@ case class InstDecode() extends Component {
   val needRedoLastRequest = Reg(Bool())
   io.fetchBufferPop := False
 
-  when(io.execNeedStall && io.execNeedStallInst =/= lastRequest.instruction) {
+  when(io.csrNeedStall) {
+    reqDataValid := False
+    /* 重新取指，不需要 Redo */
+    needRedoLastRequest := False
+  } elsewhen(io.execNeedStall && io.execNeedStallInst =/= lastRequest.instruction) {
     reqDataValid := False
     /* fetchBuffer 中的数据已经被pop了，因此暂存在lastRequest中 */
     needRedoLastRequest := True

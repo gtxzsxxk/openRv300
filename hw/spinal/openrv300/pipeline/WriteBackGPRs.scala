@@ -2,6 +2,7 @@ package openrv300.pipeline
 
 import openrv300.pipeline.control.BypassWritePort
 import openrv300.pipeline.payload.ExecMemPayload
+import openrv300.privilege.ThrowTrapRequest
 import openrv300.regfile.GPRsWritePort
 import spinal.core._
 import spinal.lib._
@@ -46,8 +47,12 @@ case class WriteBackGPRs() extends Component {
 
     insertBypass(true)
   }
+
   io.throwTrapPort.throwTrap := False
   io.throwTrapPort.trapCause := 0
   io.throwTrapPort.trapPc := 0
   io.throwTrapPort.trapValue := 0
+  when(reqValid) {
+    io.throwTrapPort := reqData.trap
+  }
 }

@@ -10,6 +10,7 @@ import cache._
 import ddr._
 import Config.axiConfig
 import openrv300.pipeline.fifo.FetchBuffer
+import openrv300.privilege.CSRs
 
 case class OpenRv300() extends Component {
   val io = new Bundle {
@@ -37,6 +38,8 @@ case class OpenRv300() extends Component {
   val iCache = Cache(2)
   val dCache = Cache(2)
   val crossbar = InstDataCrossbar()
+
+  val csrs = CSRs()
 
   /* 连接流水级 */
   fetchBuffer.io.pushValid := fetch.io.fetchBufferPushValid
@@ -70,6 +73,24 @@ case class OpenRv300() extends Component {
   fetch.io.execNeedStall := exec.io.execNeedStall
   decode.io.execNeedStall := exec.io.execNeedStall
   decode.io.execNeedStallInst := exec.io.execNeedStallInst
+
+  /* ==== CSR ==== */
+  /* CSR 在访存 */
+  csrs.io.port <> mem.io.csrPort
+  /* write back 时抛出异常 */
+  csrs.io.throwTrapPort <> wb.io.throwTrapPort
+  /* 给出 Trap 地址，要求 fetch 跳转 */
+  fetch.io.doTrapPort <> csrs.io.doTrapPort
+  /* 记录流水线中哪一级发生了异常，停止之后指令 */
+  csrs.io.throwTrapNow(0) := decode.io.answer.trap.throwTrap & decode.io.answer.valid
+  csrs.io.throwTrapNow(1) := exec.io.answer.trap.throwTrap & exec.io.answer.valid
+  csrs.io.throwTrapNow(2) := mem.io.answer.trap.throwTrap & mem.io.answer.valid
+  /* decode 处理 ECALL 时，需要知道当前的特权态 */
+  decode.io.privilegeLevel := csrs.io.privilegeLevel
+  /* 将 csr need stall 信号传给对应的流水线级 */
+  fetch.io.csrNeedStall := csrs.io.csrNeedStall(0)
+  decode.io.csrNeedStall := csrs.io.csrNeedStall(1)
+  exec.io.csrNeedStall := csrs.io.csrNeedStall(2)
 
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort
