@@ -7,7 +7,7 @@ val spinalCore = "com.github.spinalhdl" %% "spinalhdl-core" % spinalVersion
 val spinalLib = "com.github.spinalhdl" %% "spinalhdl-lib" % spinalVersion
 val spinalIdslPlugin = compilerPlugin("com.github.spinalhdl" %% "spinalhdl-idsl-plugin" % spinalVersion)
 
-val testRequests = "com.lihaoyi" %% "requests" % "0.9.0"
+val testRequests = "com.lihaoyi" %% "requests" % "0.8.3"
 val uJson = "com.lihaoyi" %% "ujson" % "4.0.0"
 
 lazy val openrv300 = (project in file("."))
