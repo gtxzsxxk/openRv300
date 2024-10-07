@@ -18,6 +18,7 @@ case class MemAccess() extends Component {
     val dCacheMiss = out port Bool()
 
     val csrPort = master(CSRPort())
+    val csrNeedStall = in port Bool()
   }
 
   val reqData = io.request.payload
