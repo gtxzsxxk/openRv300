@@ -82,7 +82,7 @@ object ExceptionTests extends App {
       var lastInst: BigInt = 0
       var lastInstPc: BigInt = 0
 
-      while (cycles < 200) {
+      while (cycles < 2500) {
         if (lastInstValid && diffTestEnabled && !dut.core.wb.reqData.isNOP.toBoolean && dut.core.wb.reqValid.toBoolean) {
           lastInstValid = false;
           val regfile = Array.fill[BigInt](32)(0)
@@ -93,7 +93,8 @@ object ExceptionTests extends App {
           assert(temuRunOneInstAndCompare(lastInst, lastInstPc, dut.core.wb.reqData.instPc.toBigInt, regfile))
         }
 
-        if (!dut.core.wb.reqData.isNOP.toBoolean && dut.core.wb.reqValid.toBoolean) {
+        if ((!dut.core.wb.reqData.isNOP.toBoolean && dut.core.wb.reqValid.toBoolean) ||
+          dut.core.wb.reqData.trap.throwTrap.toBoolean) {
           retireCnt += 1
           lastInstValid = true
           lastInst = dut.core.wb.reqData.instruction.toBigInt
