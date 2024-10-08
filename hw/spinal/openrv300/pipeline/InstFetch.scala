@@ -154,14 +154,11 @@ case class InstFetch() extends Component {
       } elsewhen (!io.dCacheMiss && io.memAnswer.valid) {
         /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
         * 的下一条指令，并且将本流水级的状态设置到下下条指令
+        * 由于此时可能会出现 iCache Miss 导致取指失败，所以
+        * 取指令仍然需要回到 normal Working
         */
-        fetchValid := True
-
-        ansPayload.pcAddr := io.memAnswer.payload.instPc + 4
-        ansPayload.instruction := io.iCachePort.readValue
-        io.iCachePort.address := io.memAnswer.payload.instPc + 4
-
-        programCounter := io.memAnswer.payload.instPc + 4 + 4
+        fetchValid := False
+        programCounter := io.memAnswer.payload.instPc + 4
         goto(normalWorking)
       }
     }
