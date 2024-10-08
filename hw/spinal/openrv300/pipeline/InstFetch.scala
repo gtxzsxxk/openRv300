@@ -130,6 +130,9 @@ case class InstFetch() extends Component {
       when(io.takeJump) {
         programCounter := io.jumpAddress
         fetchValid := False
+      } elsewhen (io.csrNeedStall) {
+        fetchValid := False
+        goto(csrStall)
       }
       when(!io.iCachePort.needStall) {
         fetchValid := True
@@ -144,8 +147,10 @@ case class InstFetch() extends Component {
 
     dCacheMiss.whenIsActive {
       fetchValid := False
-      when(!io.dCacheMiss && dCacheMissed) {
       io.iCacheIsIdle := True
+      when(io.csrNeedStall) {
+        fetchValid := False
+        goto(csrStall)
         /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
         * 的下一条指令，并且将本流水级的状态设置到下下条指令
         */
@@ -162,8 +167,11 @@ case class InstFetch() extends Component {
 
     execStall.whenIsActive {
       fetchValid := False
-      when(!io.execNeedStall) {
       io.iCacheIsIdle := True
+      when(io.csrNeedStall) {
+        fetchValid := False
+        goto(csrStall)
+      } elsewhen (io.execNeedStall === False) {
         goto(normalWorking)
       }
     }
