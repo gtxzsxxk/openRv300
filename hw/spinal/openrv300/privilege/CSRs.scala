@@ -93,6 +93,7 @@ case class CSRs() extends Component {
   /* 复位后的初值 */
   csrEntities(getCsrIndexByName("mvendorid")) init (B"32'h0")
   csrEntities(getCsrIndexByName("mhartid")) init (B"32'h0")
+  csrEntities(getCsrIndexByName("medeleg")) init (B"32'h0")
   csrEntities(getCsrIndexByName("cycle")) init (B"32'h0")
   csrEntities(getCsrIndexByName("cycleh")) init (B"32'h0")
   csrEntities(getCsrIndexByName("time")) init (B"32'h0")
