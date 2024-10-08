@@ -35,7 +35,7 @@ case class InstDataCrossbar() extends Component {
         arbiter := False
       } elsewhen (!iBusStart && dBusStart) {
         arbiter := True
-      } otherwise {
+      } elsewhen (iBusStart && dBusStart) {
         arbiter := ~arbiter
       }
 
