@@ -82,15 +82,12 @@ case class InstFetch() extends Component {
         io.fetchBufferPop := True
       } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
-        io.iCacheIsIdle := False
         goto(iCacheMiss)
       } elsewhen (io.csrNeedStall) {
         fetchValid := False
-        io.iCacheIsIdle := False
         goto(csrStall)
       } elsewhen (io.execNeedStall) {
         fetchValid := False
-        io.iCacheIsIdle := False
         goto(execStall)
       } otherwise {
         /* 遇到源寄存器不满足，需要重放 */
@@ -122,7 +119,6 @@ case class InstFetch() extends Component {
             }
           } otherwise {
             fetchValid := False
-            io.iCacheIsIdle := False
             goto(dCacheMiss)
           }
         }
@@ -149,6 +145,7 @@ case class InstFetch() extends Component {
     dCacheMiss.whenIsActive {
       fetchValid := False
       when(!io.dCacheMiss && dCacheMissed) {
+      io.iCacheIsIdle := True
         /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
         * 的下一条指令，并且将本流水级的状态设置到下下条指令
         */
@@ -166,12 +163,14 @@ case class InstFetch() extends Component {
     execStall.whenIsActive {
       fetchValid := False
       when(!io.execNeedStall) {
+      io.iCacheIsIdle := True
         goto(normalWorking)
       }
     }
 
     csrStall.whenIsActive {
       fetchValid := False
+      io.iCacheIsIdle := True
       /* 清空 fetch buffer，理论上应该是clear，但是这里只存一条指令，所以可以直接pop */
       io.fetchBufferPop := True
       when(io.doTrapPort.trapValid) {
