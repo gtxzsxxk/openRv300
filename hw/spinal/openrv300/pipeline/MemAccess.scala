@@ -155,6 +155,8 @@ case class MemAccess() extends Component {
 
     val fsmReqData = Reg(ExecMemPayload())
 
+    val iCacheIdleReg = RegNext(io.iCacheIsIdle)
+
     normalWorking.whenIsActive {
       when(ansPayload.writeRegDest) {
         insertBypass(true)
@@ -296,8 +298,7 @@ case class MemAccess() extends Component {
       io.answer.payload := fsmReqData
       ansValid := False
       io.dCacheMiss := True
-      when(io.iCacheIsIdle) {
-        io.dCacheMiss := False
+      when(io.iCacheIsIdle && iCacheIdleReg) {
         ansValid := True
         goto(normalWorking)
 
