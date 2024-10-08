@@ -151,6 +151,7 @@ case class InstFetch() extends Component {
       when(io.csrNeedStall) {
         fetchValid := False
         goto(csrStall)
+      } elsewhen (!io.dCacheMiss && io.memAnswer.valid) {
         /* dCache Miss 刚解决，这个时候应该执行 dCache Miss 时
         * 的下一条指令，并且将本流水级的状态设置到下下条指令
         */
