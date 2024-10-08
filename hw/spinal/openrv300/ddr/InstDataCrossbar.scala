@@ -48,7 +48,7 @@ case class InstDataCrossbar() extends Component {
     }
 
     transmitting.whenIsActive {
-      when(io.coreBus.b.valid) {
+      when(io.coreBus.b.valid && io.coreBus.b.ready) {
         isWriting := True
       } otherwise {
         when(isWriting) {
@@ -57,7 +57,7 @@ case class InstDataCrossbar() extends Component {
         }
       }
 
-      when(io.coreBus.r.valid) {
+      when(io.coreBus.r.valid && io.coreBus.r.ready) {
         isReading := True
       } otherwise {
         when(isReading) {
