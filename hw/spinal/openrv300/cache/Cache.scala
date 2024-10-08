@@ -72,6 +72,12 @@ case class Cache(ways: Int) extends Component {
   io.memPort.r.setBlocked()
   io.memPort.b.setBlocked()
 
+  when(io.corePort.invalidate) {
+    for(idx <- 0 until 64) {
+      cacheFlags(idx) := B(0, cacheGroupFlagBits bits)
+    }
+  }
+
   val fsm = new StateMachine {
     val evictCounter = Reg(UInt(4 bits))
     val whichWayToEvict = Reg(UInt(log2Up(ways) bits))

@@ -17,8 +17,10 @@ case class CacheCorePort() extends Bundle with IMasterSlave {
 
   val fault = Bool()
 
+  val invalidate = Bool()
+
   override def asMaster(): Unit = {
-    out(address, isWrite, writeValue, valid, writeMask)
+    out(address, isWrite, writeValue, valid, writeMask, invalidate)
     in(readValue, needStall, fault)
   }
 }
