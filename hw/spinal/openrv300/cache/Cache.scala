@@ -95,6 +95,8 @@ case class Cache(ways: Int) extends Component {
     val fsmTempLineFlags = CacheLineFlags(ways)
     fsmTempLineFlags := getCacheLine(whichWayToEvict, fsmIndex)._2
 
+    val busFault = Reg(Bool()) init (False)
+
     val cacheNormalWorking = new State with EntryPoint
     val findWayToEvict = new State
     val doEvict = new State
@@ -247,58 +249,63 @@ case class Cache(ways: Int) extends Component {
       io.corePort.needStall := fsmNeedStall
     }
 
-    readCacheLine.onEntry(fsmNeedStall := True).onEntry(readStartFlag := False).onEntry(readCnt := 0).whenIsActive {
-      io.memPort.b.setBlocked()
+    readCacheLine.onEntry(fsmNeedStall := True).onEntry(readStartFlag := False)
+      .onEntry(readCnt := 0).onEntry(busFault := False).whenIsActive {
+        io.memPort.b.setBlocked()
 
-      val ar = io.memPort.ar
-      val r = io.memPort.r
-      ar.valid := True
-      ar.payload.id := 0
-      ar.payload.addr := Cat(fsmTag, fsmIndex, U"6'd0").asUInt
-      /* 传输64个字节 */
-      ar.payload.len := 64 - 1
-      /* 一次传4个字节 */
-      ar.payload.size := Axi4.size.BYTE_4.asUInt
-      /* 增量burst */
-      ar.payload.burst := Axi4.burst.INCR
+        val ar = io.memPort.ar
+        val r = io.memPort.r
+        ar.valid := True
+        ar.payload.id := 0
+        ar.payload.addr := Cat(fsmTag, fsmIndex, U"6'd0").asUInt
+        /* 传输64个字节 */
+        ar.payload.len := 64 - 1
+        /* 一次传4个字节 */
+        ar.payload.size := Axi4.size.BYTE_4.asUInt
+        /* 增量burst */
+        ar.payload.burst := Axi4.burst.INCR
 
-      when(ar.ready) {
-        readStartFlag := True
-      }
+        when(ar.ready) {
+          readStartFlag := True
+        }
 
-      when(readStartFlag) {
-        ar.setIdle()
-        r.ready := True
-        when(r.valid) {
-          /* TODO: 处理异常 */
-          when(r.resp === Axi4.resp.OKAY) {
-            fsmTempLine.tag := fsmTag
-            fsmTempLine.data(readCnt.resized) := r.data
+        when(readStartFlag) {
+          ar.setIdle()
+          r.ready := True
+          when(r.valid) {
+            /* TODO: 处理异常 */
+            when(r.resp === Axi4.resp.OKAY) {
+              fsmTempLine.tag := fsmTag
+              fsmTempLine.data(readCnt.resized) := r.data
 
-            val group = Bits(cacheGroupBits bits)
-            group := cacheMemories(fsmIndex)
-            group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempLine.asBits
-            cacheMemories.write(fsmIndex, group)
-
+              val group = Bits(cacheGroupBits bits)
+              group := cacheMemories(fsmIndex)
+              group.subdivideIn(ways slices)(whichWayToEvict) := fsmTempLine.asBits
+              cacheMemories.write(fsmIndex, group)
+            } otherwise {
+              /* AXI 总线错误，访存失败 */
+              busFault := True
+            }
             readCnt := readCnt + 1
-          } otherwise {
-            /* AXI 总线错误，访存失败 */
-            io.corePort.fault := True
-            fsmNeedStall := False
-            goto(cacheNormalWorking)
-          }
-          when(readCnt === 16 - 1) {
-            fsmTempLineFlags.validVec(whichWayToEvict) := True
-            fsmTempLineFlags.dirtyVec(whichWayToEvict) := False
-            fsmTempLineFlags.counterVec(whichWayToEvict) := U"64'd0"
-            cacheFlags(fsmIndex) := fsmTempLineFlags.asBits
-            fsmNeedStall := False
-            goto(cacheNormalWorking)
+
+            when(r.payload.last) {
+              when(busFault) {
+                io.corePort.fault := True
+                fsmNeedStall := False
+                goto(cacheNormalWorking)
+              } otherwise {
+                fsmTempLineFlags.validVec(whichWayToEvict) := True
+                fsmTempLineFlags.dirtyVec(whichWayToEvict) := False
+                fsmTempLineFlags.counterVec(whichWayToEvict) := U"64'd0"
+                cacheFlags(fsmIndex) := fsmTempLineFlags.asBits
+                fsmNeedStall := False
+                goto(cacheNormalWorking)
+              }
+            }
           }
         }
-      }
 
-      io.corePort.needStall := fsmNeedStall
-    }
+        io.corePort.needStall := fsmNeedStall
+      }
   }
 }
