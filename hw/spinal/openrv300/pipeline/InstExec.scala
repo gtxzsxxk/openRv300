@@ -311,12 +311,16 @@ case class InstExec() extends Component {
             insertBypass(true)
           }
           is(MicroOp.ECALL) {
+            /* TODO: 删去这个代码，因为 ecall 在 decode 就产生了trap，在前面就被处理完成了 */
             NOP(fakeNop = true, microOp = MicroOp.ECALL)
           }
           is(MicroOp.CSR) {
             ansPayload.writeRegDest := True
 
             insertBypass(false)
+          }
+          is(MicroOp.FENCE_I) {
+            NOP(fakeNop = true, microOp = MicroOp.FENCE_I)
           }
           default {
             illegalInstruction()

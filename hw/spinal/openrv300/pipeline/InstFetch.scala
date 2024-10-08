@@ -31,6 +31,9 @@ case class InstFetch() extends Component {
     val fetchBufferPushValid = out port Bool()
     val fetchBufferHead = in port FetchBufferElement()
     val fetchBufferPop = out port Bool()
+
+    val flush = in port Bool()
+    val iCacheIsIdle = out port Bool()
   }
 
   val programCounter = RegInit(startAddress)
@@ -40,6 +43,7 @@ case class InstFetch() extends Component {
   io.iCachePort.isWrite := False
   io.iCachePort.writeValue := B"32'd0"
   io.iCachePort.writeMask := B"4'd0"
+  io.iCachePort.invalidate := io.flush
 
   val ansPayload = FetchPayload()
   ansPayload.pcAddr := 0
@@ -60,6 +64,8 @@ case class InstFetch() extends Component {
 
   io.doTrapPort.trapReady := False
 
+  io.iCacheIsIdle := False
+
   val fsm = new StateMachine {
     val normalWorking = new State with EntryPoint
     val iCacheMiss = new State
@@ -68,6 +74,7 @@ case class InstFetch() extends Component {
     val csrStall = new State
 
     normalWorking.whenIsActive {
+      io.iCacheIsIdle := True
       when(io.takeJump) {
         programCounter := io.jumpAddress
         fetchValid := False
@@ -75,12 +82,15 @@ case class InstFetch() extends Component {
         io.fetchBufferPop := True
       } elsewhen (io.iCachePort.needStall) {
         fetchValid := False
+        io.iCacheIsIdle := False
         goto(iCacheMiss)
       } elsewhen (io.csrNeedStall) {
         fetchValid := False
+        io.iCacheIsIdle := False
         goto(csrStall)
       } elsewhen (io.execNeedStall) {
         fetchValid := False
+        io.iCacheIsIdle := False
         goto(execStall)
       } otherwise {
         /* 遇到源寄存器不满足，需要重放 */
@@ -112,6 +122,7 @@ case class InstFetch() extends Component {
             }
           } otherwise {
             fetchValid := False
+            io.iCacheIsIdle := False
             goto(dCacheMiss)
           }
         }

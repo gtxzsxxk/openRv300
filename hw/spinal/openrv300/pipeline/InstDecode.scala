@@ -310,6 +310,9 @@ case class InstDecode() extends Component {
           ansPayload.function1 := reqData.instruction(19 downto 15).resized
           ansPayload.imm := reqData.instruction(31 downto 20).resized
         }
+        is(ZICSR_ZIFENCEI.FENCE_I) {
+          NOP(MicroOp.FENCE_I)
+        }
         default {
           ansPayload.trap.throwTrap := True
           ansPayload.trap.trapCause := ExceptionCode.IllegalInstruction

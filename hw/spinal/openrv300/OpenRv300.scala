@@ -95,6 +95,10 @@ case class OpenRv300() extends Component {
   /* 没有执行的另一个分支的异常需要被清除 */
   csrs.io.clearTrap := exec.io.answer.payload.takeJump
 
+  /* FENCE.I */
+  fetch.io.flush := mem.io.flushICache
+  mem.io.iCacheIsIdle := fetch.io.iCacheIsIdle
+
   /* 连接I/D-Cache */
   fetch.io.iCachePort <> iCache.io.corePort
   mem.io.dCachePort <> dCache.io.corePort

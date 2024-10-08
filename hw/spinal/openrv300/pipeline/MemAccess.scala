@@ -19,6 +19,9 @@ case class MemAccess() extends Component {
 
     val csrPort = master(CSRPort())
     val csrNeedStall = in port Bool()
+
+    val flushICache = out port Bool()
+    val iCacheIsIdle = in port Bool()
   }
 
   val reqData = io.request.payload
@@ -34,6 +37,7 @@ case class MemAccess() extends Component {
   io.dCachePort.writeValue := B"32'd0"
   io.dCachePort.valid := False
   io.dCachePort.writeMask := B"4'd0"
+  io.dCachePort.invalidate := False
 
   val bypassWPort = BypassWritePort().noCombLoopCheck
   val bypassValueReady = Reg(Bool()) init (False)
@@ -134,6 +138,8 @@ case class MemAccess() extends Component {
 
   io.dCacheMiss := False
 
+  io.flushICache := False
+
   io.answer.payload := ansPayload
 
   val fsm = new StateMachine {
@@ -142,6 +148,7 @@ case class MemAccess() extends Component {
     /* CSR 指令需要原子实现，并且为了避免这个时候更新 CSR 与下一条指令冲突
      * 在执行 CSR 指令时应当清空流水线 */
     val zicsr = new State
+    val flushICache = new State
 
     /* CSR 指令的倒计时，设置为 5，等待流水线的清空 */
     val zicsrCnt = Reg(UInt(3 bits))
@@ -175,6 +182,13 @@ case class MemAccess() extends Component {
               ansValid := False
               zicsrCnt := 5
               goto(zicsr)
+            }
+            is(MicroOp.FENCE_I) {
+              /* 假装 dCache Miss 了 */
+              fsmReqData := reqData
+              io.dCacheMiss := True
+              ansValid := False
+              goto(flushICache)
             }
           }
         }
@@ -275,6 +289,19 @@ case class MemAccess() extends Component {
             }
           }
         }
+      }
+    }
+
+    flushICache.whenIsActive {
+      io.answer.payload := fsmReqData
+      ansValid := False
+      io.dCacheMiss := True
+      when(io.iCacheIsIdle) {
+        io.dCacheMiss := False
+        ansValid := True
+        goto(normalWorking)
+
+        io.flushICache := True
       }
     }
   }

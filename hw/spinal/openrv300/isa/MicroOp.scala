@@ -22,4 +22,5 @@ object MicroOp {
   def FENCE_TSO = B"7'd21"
   def ECALL = B"7'd19"
   def CSR = B"7'd20"
+  def FENCE_I = B"7'd22"
 }
