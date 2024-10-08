@@ -34,6 +34,10 @@ SECTIONS
     _etext = .;        /* define a global symbols at end of code */
   } >FLASH
 
+  .trap_handler 0x80003000 : {
+    KEEP(*(.trap_handler))
+  } >FLASH
+
   /* Constant data into "FLASH" Rom type memory */
   .rodata :
   {
