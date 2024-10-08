@@ -21,7 +21,7 @@ case class Cache(ways: Int) extends Component {
   val cacheMemories = Mem(Bits(cacheGroupBits bits), wordCount = 64)
   val cacheFlags = Reg(Vec.fill(64)(Bits(cacheGroupFlagBits bits)))
 
-  for(idx <- 0 until 64) {
+  for (idx <- 0 until 64) {
     cacheFlags(idx) init (B(0, cacheGroupFlagBits bits))
   }
 
@@ -72,12 +72,6 @@ case class Cache(ways: Int) extends Component {
   io.memPort.r.setBlocked()
   io.memPort.b.setBlocked()
 
-  when(io.corePort.invalidate) {
-    for(idx <- 0 until 64) {
-      cacheFlags(idx) := B(0, cacheGroupFlagBits bits)
-    }
-  }
-
   val fsm = new StateMachine {
     val evictCounter = Reg(UInt(4 bits))
     val whichWayToEvict = Reg(UInt(log2Up(ways) bits))
@@ -112,52 +106,58 @@ case class Cache(ways: Int) extends Component {
       io.memPort.r.setBlocked()
 
       when(io.corePort.valid) {
-        evictCounter := 0
-        whichWayToEvictCnt := U"64'hFFFF_FFFF_FFFF_FFFF"
-        writeDirtyFlag := False
-        when(hit) {
-          val group = Bits(cacheGroupBits bits)
-          group := cacheMemories(index)
-          group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
-          when(io.corePort.isWrite) {
-            for (idx <- 0 until 4) {
-              when(io.corePort.writeMask(idx) === True) {
-                cacheLine.data(offsetByWord).subdivideIn(4 slices)(idx) :=
-                  io.corePort.writeValue.subdivideIn(4 slices)(idx)
-              }
-            }
-            cacheLineFlags.dirtyVec(whichWay) := True
-          } otherwise {
-            io.corePort.readValue := cacheLine.data(offsetByWord)
+        when(io.corePort.invalidate) {
+          for (idx <- 0 until 64) {
+            cacheFlags(idx) := B(0, cacheGroupFlagBits bits)
           }
-
-          val writeTmpCacheLineFlags = CacheLineFlags(ways)
-          writeTmpCacheLineFlags := cacheLineFlags
-          writeTmpCacheLineFlags.counterVec(whichWay) := cacheLineFlags.counterVec(whichWay) + 1
-          cacheMemories.write(index, group)
-          cacheFlags(index) := writeTmpCacheLineFlags.asBits
-          io.corePort.needStall := False
         } otherwise {
-          /* cache miss */
-          fsmTag := tag
-          fsmIndex := index
-          fsmOffset := offset
-          fsmIsWrite := io.corePort.isWrite
+          evictCounter := 0
+          whichWayToEvictCnt := U"64'hFFFF_FFFF_FFFF_FFFF"
+          writeDirtyFlag := False
+          when(hit) {
+            val group = Bits(cacheGroupBits bits)
+            group := cacheMemories(index)
+            group.subdivideIn(ways slices)(whichWay) := cacheLine.asBits
+            when(io.corePort.isWrite) {
+              for (idx <- 0 until 4) {
+                when(io.corePort.writeMask(idx) === True) {
+                  cacheLine.data(offsetByWord).subdivideIn(4 slices)(idx) :=
+                    io.corePort.writeValue.subdivideIn(4 slices)(idx)
+                }
+              }
+              cacheLineFlags.dirtyVec(whichWay) := True
+            } otherwise {
+              io.corePort.readValue := cacheLine.data(offsetByWord)
+            }
 
-          when(io.corePort.isWrite) {
-            fsmWriteValue := io.corePort.writeValue
-            fsmWriteMask := io.corePort.writeMask
-          }
-
-          when(hasFreeLine) {
-            whichWayToEvict := freeLineWay
-            goto(doEvict)
+            val writeTmpCacheLineFlags = CacheLineFlags(ways)
+            writeTmpCacheLineFlags := cacheLineFlags
+            writeTmpCacheLineFlags.counterVec(whichWay) := cacheLineFlags.counterVec(whichWay) + 1
+            cacheMemories.write(index, group)
+            cacheFlags(index) := writeTmpCacheLineFlags.asBits
+            io.corePort.needStall := False
           } otherwise {
-            goto(findWayToEvict)
-          }
+            /* cache miss */
+            fsmTag := tag
+            fsmIndex := index
+            fsmOffset := offset
+            fsmIsWrite := io.corePort.isWrite
 
-          /* 立刻stall */
-          io.corePort.needStall := True
+            when(io.corePort.isWrite) {
+              fsmWriteValue := io.corePort.writeValue
+              fsmWriteMask := io.corePort.writeMask
+            }
+
+            when(hasFreeLine) {
+              whichWayToEvict := freeLineWay
+              goto(doEvict)
+            } otherwise {
+              goto(findWayToEvict)
+            }
+
+            /* 立刻stall */
+            io.corePort.needStall := True
+          }
         }
       }
     }
