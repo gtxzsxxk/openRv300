@@ -198,7 +198,6 @@ case class MemAccess() extends Component {
     }
 
     cacheMiss.whenIsActive {
-      io.answer.payload := fsmReqData
       ansValid := False
 
       doLoadStore(fsmReqData)
@@ -228,7 +227,7 @@ case class MemAccess() extends Component {
     }
 
     zicsr.whenIsActive {
-      io.answer.payload := fsmReqData
+      ansPayload := fsmReqData
       ansValid := False
       zicsrCnt := zicsrCnt - 1
       io.dCacheMiss := True
@@ -295,7 +294,7 @@ case class MemAccess() extends Component {
     }
 
     flushICache.whenIsActive {
-      io.answer.payload := fsmReqData
+      ansPayload := fsmReqData
       ansValid := False
       io.dCacheMiss := True
       when(io.iCacheIsIdle && iCacheIdleReg) {
